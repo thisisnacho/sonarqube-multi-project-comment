@@ -1,0 +1,79 @@
+name: SonarQube Multi-Project PR Comment
+description: Aggregate quality-gate results from multiple SonarQube projects into a single PR comment.
+author: thisisnacho
+branding:
+  icon: message-square
+  color: blue
+
+inputs:
+  sonar-host-url:
+    description: Base URL of the SonarQube/SonarCloud instance (e.g. https://sonarcloud.io).
+    required: false
+  sonar-token:
+    description: Token used to authenticate against the SonarQube API.
+    required: false
+  projects:
+    description: |
+      Newline- or comma-separated list of projects in `LABEL|KEY` form (or just
+      `KEY` to use the key as the label). Requires `sonar-host-url` and
+      `sonar-token`.
+    required: false
+  report-task-files:
+    description: |
+      Glob (one per line) of `report-task.txt` files produced by the SonarScanner.
+      The action reads each file, waits for the Compute Engine task to finish,
+      then queries the API. Useful for matrix builds.
+    required: false
+  results-json:
+    description: |
+      Pre-built JSON array of project results, used as an escape hatch when
+      neither the API nor scanner outputs are available. See README for the
+      schema.
+    required: false
+  pr-number:
+    description: Pull request number. Defaults to the PR number from the workflow context.
+    required: false
+  github-token:
+    description: Token used to read/write PR comments. Defaults to `github.token`.
+    required: false
+    default: ${{ github.token }}
+  comment-header:
+    description: Heading rendered at the top of the aggregated comment.
+    required: false
+    default: SonarQube PR analysis
+  comment-marker:
+    description: Hidden HTML marker used to find this comment on subsequent runs.
+    required: false
+    default: <!-- sonarqube-multi-project-comment -->
+  icon-base-url:
+    description: |
+      Base URL for status icons. Defaults to the SonarQube community branch
+      plugin path (`<host>/static/communityBranchPlugin`). Override if your
+      instance hosts icons elsewhere.
+    required: false
+  footer:
+    description: Optional text rendered below the table (wrapped in <sub>).
+    required: false
+  hide-previous:
+    description: |
+      When true, hide the previous aggregated comment as OUTDATED via GitHub's
+      `minimizeComment` mutation and post a fresh comment. When false, edit the
+      existing comment in place.
+    required: false
+    default: 'true'
+  fail-on-quality-gate:
+    description: Fail the action when any project's quality gate did not pass.
+    required: false
+    default: 'false'
+
+outputs:
+  comment-id:
+    description: ID of the aggregated PR comment that was created or updated.
+  quality-gate:
+    description: Overall quality gate (`OK` if every project passed, otherwise `ERROR`).
+  results-json:
+    description: JSON array of per-project results, useful for downstream steps.
+
+runs:
+  using: node20
+  main: dist/index.js
