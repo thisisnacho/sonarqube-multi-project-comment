@@ -8,7 +8,6 @@ import { SonarClient } from "./sonar";
 import {
   loadFromProjects,
   loadFromReportTaskFiles,
-  parseInlineResults,
   parseProjectsInput,
 } from "./sources";
 import type { ProjectResult, SonarConfig } from "./types";
@@ -19,7 +18,6 @@ async function run(): Promise<void> {
     const sonarToken = core.getInput("sonar-token");
     const projectsRaw = core.getInput("projects");
     const reportTaskFiles = core.getInput("report-task-files");
-    const resultsJson = core.getInput("results-json");
     const commentHeader = core.getInput("comment-header") || "SonarQube PR analysis";
     const failOnGate = core.getBooleanInput("fail-on-quality-gate");
     const iconBaseUrl =
@@ -34,31 +32,22 @@ async function run(): Promise<void> {
       throw new Error("Could not determine pull request number — set the `pr-number` input.");
     }
 
-    const sources = countSources({ projectsRaw, reportTaskFiles, resultsJson });
-    if (sources === 0) {
-      throw new Error("Provide at least one of `projects`, `report-task-files`, or `results-json`.");
+    if (!projectsRaw && !reportTaskFiles) {
+      throw new Error("Provide at least one of `projects` or `report-task-files`.");
+    }
+    if (!sonarHostUrl || !sonarToken) {
+      throw new Error("`sonar-host-url` and `sonar-token` are required.");
     }
 
-    const needsClient = projectsRaw || reportTaskFiles;
-    let client: SonarClient | undefined;
-    if (needsClient) {
-      if (!sonarHostUrl || !sonarToken) {
-        throw new Error("`sonar-host-url` and `sonar-token` are required when querying the SonarQube API.");
-      }
-      const config: SonarConfig = { hostUrl: sonarHostUrl, token: sonarToken, iconBaseUrl };
-      client = new SonarClient(config);
-    }
+    const config: SonarConfig = { hostUrl: sonarHostUrl, token: sonarToken, iconBaseUrl };
+    const client = new SonarClient(config);
 
     const results: ProjectResult[] = [];
-
-    if (resultsJson) {
-      results.push(...parseInlineResults(resultsJson));
-    }
-    if (projectsRaw && client) {
+    if (projectsRaw) {
       const projects = parseProjectsInput(projectsRaw);
       results.push(...(await loadFromProjects(client, projects, pullRequest)));
     }
-    if (reportTaskFiles && client) {
+    if (reportTaskFiles) {
       results.push(...(await loadFromReportTaskFiles(client, reportTaskFiles, pullRequest, true)));
     }
 
@@ -88,10 +77,6 @@ async function run(): Promise<void> {
   } catch (err) {
     core.setFailed((err as Error).message);
   }
-}
-
-function countSources(inputs: { projectsRaw: string; reportTaskFiles: string; resultsJson: string }): number {
-  return [inputs.projectsRaw, inputs.reportTaskFiles, inputs.resultsJson].filter((v) => v.trim().length > 0).length;
 }
 
 void run();

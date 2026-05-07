@@ -22,14 +22,8 @@ inputs:
   report-task-files:
     description: |
       Glob (one per line) of `report-task.txt` files produced by the SonarScanner.
-      The action reads each file, waits for the Compute Engine task to finish,
-      then queries the API. Useful for matrix builds.
-    required: false
-  results-json:
-    description: |
-      Pre-built JSON array of project results, used as an escape hatch when
-      neither the API nor scanner outputs are available. See README for the
-      schema.
+      The action reads each file, waits for SonarQube to finish processing the
+      scan, then queries the API. Useful for matrix builds.
     required: false
   pr-number:
     description: Pull request number. Defaults to the PR number from the workflow context.
@@ -100,7 +94,6 @@ runs:
         sonar-token: ${{ inputs.sonar-token }}
         projects: ${{ inputs.projects }}
         report-task-files: ${{ inputs.report-task-files }}
-        results-json: ${{ inputs.results-json }}
         pr-number: ${{ inputs.pr-number }}
         comment-header: ${{ inputs.comment-header }}
         icon-base-url: ${{ inputs.icon-base-url }}

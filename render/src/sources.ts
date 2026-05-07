@@ -65,20 +65,11 @@ export async function loadFromReportTaskFiles(
           await client.waitForCeTask(task.ceTaskId);
         } catch (err) {
           core.warning(
-            `Compute Engine wait failed for ${task.projectKey}: ${(err as Error).message}`,
+            `Wait for SonarQube analysis failed for ${task.projectKey}: ${(err as Error).message}`,
           );
         }
       }
       return client.fetchProject(task.projectKey, task.projectKey, pullRequest);
     }),
   );
-}
-
-export function parseInlineResults(raw: string): ProjectResult[] {
-  if (!raw.trim()) return [];
-  const data = JSON.parse(raw);
-  if (!Array.isArray(data)) {
-    throw new Error("results-json must be a JSON array of ProjectResult objects");
-  }
-  return data as ProjectResult[];
 }

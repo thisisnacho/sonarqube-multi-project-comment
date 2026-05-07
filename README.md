@@ -72,20 +72,6 @@ querying the API for results.
 ```
 </details>
 
-<details>
-<summary><strong>3. <code>results-json</code> — inline pre-built results</strong> (escape hatch)</summary>
-
-For projects scanned outside the standard scanner, or when you want to
-synthesise rows from another tool. The JSON array follows the
-`ProjectResult` shape exported from `render/src/types.ts`.
-
-```yaml
-- uses: thisisnacho/sonarqube-multi-project-comment@v1
-  with:
-    results-json: ${{ steps.collect.outputs.results }}
-```
-</details>
-
 ## Inputs
 
 | Input | Default | Description |
@@ -94,7 +80,6 @@ synthesise rows from another tool. The JSON array follows the
 | `sonar-token` | — | Token used to authenticate against the SonarQube API. |
 | `projects` | — | Newline- or comma-separated list of `LABEL\|KEY` (or just `KEY`). |
 | `report-task-files` | — | Glob of `report-task.txt` files produced by the scanner. |
-| `results-json` | — | Pre-built JSON array of `ProjectResult` results. |
 | `pr-number` | from context | Pull request number override. |
 | `comment-header` | `SonarQube PR analysis` | Heading rendered above the table. |
 | `icon-base-url` | `<host>/static/communityBranchPlugin` | Base URL for status icons. |

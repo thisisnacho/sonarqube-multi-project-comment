@@ -9,8 +9,6 @@ inputs:
     required: false
   report-task-files:
     required: false
-  results-json:
-    required: false
   pr-number:
     required: false
   comment-header:
