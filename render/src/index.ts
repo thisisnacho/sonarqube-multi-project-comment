@@ -22,9 +22,7 @@ async function run(): Promise<void> {
     const failOnGate = core.getBooleanInput("fail-on-quality-gate");
     const iconBaseUrl =
       core.getInput("icon-base-url") || `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
-    const footer =
-      core.getInput("footer") ||
-      "Aggregated from per-project SonarQube scans. Re-runs hide the previous comment as outdated.";
+    const footer = core.getInput("footer") || "Aggregated from per-project SonarQube scans.";
 
     const pullRequestInput = core.getInput("pr-number");
     const pullRequest = pullRequestInput || `${github.context.payload.pull_request?.number ?? ""}`;

@@ -83,7 +83,7 @@ querying the API for results.
 | `pr-number` | from context | Pull request number override. |
 | `comment-header` | `SonarQube PR analysis` | Heading rendered above the table. |
 | `icon-base-url` | `<host>/static/communityBranchPlugin` | Base URL for status icons. |
-| `footer` | `Aggregated from per-project SonarQube scans. Re-runs hide the previous comment as outdated.` | Text rendered below the table inside `<sub>`. |
+| `footer` | `Aggregated from per-project SonarQube scans.` | Text rendered below the table inside `<sub>`. |
 | `fail-on-quality-gate` | `false` | Fail the job when any gate is `ERROR`. |
 | `github-token` | `${{ github.token }}` | Token used to read/write PR comments. |
 | `sticky-header` | `sonarqube-aggregate` | Identifier `sticky-pull-request-comment` uses to dedupe. |

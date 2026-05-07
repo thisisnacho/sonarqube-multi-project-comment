@@ -40017,8 +40017,7 @@ async function run() {
         const commentHeader = getInput("comment-header") || "SonarQube PR analysis";
         const failOnGate = getBooleanInput("fail-on-quality-gate");
         const iconBaseUrl = getInput("icon-base-url") || `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
-        const footer = getInput("footer") ||
-            "Aggregated from per-project SonarQube scans. Re-runs hide the previous comment as outdated.";
+        const footer = getInput("footer") || "Aggregated from per-project SonarQube scans.";
         const pullRequestInput = getInput("pr-number");
         const pullRequest = pullRequestInput || `${github_context.payload.pull_request?.number ?? ""}`;
         if (!pullRequest) {
