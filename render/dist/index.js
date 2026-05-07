@@ -28592,47 +28592,53 @@ module.exports = {
 // icon+label and multi-word phrases on the same rendered line. The HTML
 // entity `&nbsp;` is sometimes normalised to a regular space by GitHub's
 // markdown sanitiser, so we ship the literal character instead.
-const NB = " ";
+const NB = " ";
+const COMMENT_TEMPLATE = `## {header}
+
+| Project | Gate | Issues | Sec. | Coverage | Duplications |
+| --- | --- | --- | --- | --- | --- |
+{rows}{footer}
+`;
+const ROW_TEMPLATE = "| {project} | {gate} | {issues} | {security} | {coverage} | {duplications} |";
+const NOT_ANALYZED_ROW = "| {project} | Not analyzed | - | - | - | - |";
+const FOOTER_TEMPLATE = "\n\n<sub>{text}</sub>";
 function renderComment(results, opts) {
-    const lines = [
-        `## ${opts.header}`,
-        "",
-        "| Project | Gate | Issues | Sec. | Coverage | Duplications |",
-        "| --- | --- | --- | --- | --- | --- |",
-        ...results.map((r) => renderRow(r, opts)),
-    ];
-    if (opts.footer) {
-        lines.push("", `<sub>${opts.footer}</sub>`);
-    }
-    return lines.join("\n") + "\n";
+    return fill(COMMENT_TEMPLATE, {
+        header: opts.header,
+        rows: results.map((r) => renderRow(r, opts)).join("\n"),
+        footer: opts.footer ? fill(FOOTER_TEMPLATE, { text: opts.footer }) : "",
+    });
 }
 function renderRow(r, opts) {
-    const { iconBaseUrl } = opts;
     const projectCell = link(r.label, r.dashboardUrl);
-    if (!r.analyzed) {
-        return `| ${projectCell} | Not${NB}analyzed | - | - | - | - |`;
-    }
+    if (!r.analyzed)
+        return fill(NOT_ANALYZED_ROW, { project: projectCell });
+    return fill(ROW_TEMPLATE, buildCells(r, opts, projectCell));
+}
+function buildCells(r, opts, projectCell) {
+    const { iconBaseUrl } = opts;
     const host = baseHost(r.dashboardUrl);
     const pr = prFrom(r.dashboardUrl);
     const key = encodeKey(r.projectKey);
-    const gateState = qualityGateState(r.qualityGate);
-    const gateText = qualityGateText(r.qualityGate);
-    const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
-    const gateCell = linkedIcon("Gate", gateIcon, gateText, r.dashboardUrl);
-    const newCodeFilter = `issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true`;
-    const newUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}&${newCodeFilter}`;
-    const acceptedUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}&issueStatuses=ACCEPTED`;
-    const securityUrl = `${host}/project/security_hotspots?id=${key}&pullRequest=${pr}&${newCodeFilter}`;
-    const coverageUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_coverage&view=list`;
-    const duplicationsUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_duplicated_lines_density&view=list`;
     const commonIcon = `${iconBaseUrl}/common`;
-    const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)}${NB}New`, newUrl);
-    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)}${NB}Acc.`, acceptedUrl);
-    const issuesCell = `${newLink}<br>${acceptedLink}`;
-    const securityCell = linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, securityUrl);
-    const coverageCell = stackedPercent(r.newCoverage, r.coverage, "Coverage", commonIcon, coverageUrl);
-    const duplicationsCell = stackedPercent(r.newDuplications, r.duplications, "Duplications", commonIcon, duplicationsUrl);
-    return `| ${projectCell} | ${gateCell} | ${issuesCell} | ${securityCell} | ${coverageCell} | ${duplicationsCell} |`;
+    const newCodeFilter = "issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true";
+    const issuesUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}`;
+    const measuresUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}`;
+    const gateState = qualityGateState(r.qualityGate);
+    const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
+    const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)}${NB}New`, `${issuesUrl}&${newCodeFilter}`);
+    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)}${NB}Acc.`, `${issuesUrl}&issueStatuses=ACCEPTED`);
+    return {
+        project: projectCell,
+        gate: linkedIcon("Gate", gateIcon, qualityGateText(r.qualityGate), r.dashboardUrl),
+        issues: `${newLink}<br>${acceptedLink}`,
+        security: linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, `${host}/project/security_hotspots?id=${key}&pullRequest=${pr}&${newCodeFilter}`),
+        coverage: stackedPercent(r.newCoverage, r.coverage, "Coverage", commonIcon, `${measuresUrl}&metric=new_coverage&view=list`),
+        duplications: stackedPercent(r.newDuplications, r.duplications, "Duplications", commonIcon, `${measuresUrl}&metric=new_duplicated_lines_density&view=list`),
+    };
+}
+function fill(template, values) {
+    return template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
 }
 function stackedPercent(newValue, postValue, alt, commonIcon, url) {
     const newRow = linkedIcon(alt, `${commonIcon}/${pctState(newValue)}-16px.png`, pctLabel(newValue, "new"), url);
@@ -28657,9 +28663,9 @@ function qualityGateState(status) {
 function qualityGateText(status) {
     switch (status) {
         case "OK":
-            return "Passed";
+            return "Pass";
         case "ERROR":
-            return "<strong>Failed</strong>";
+            return "<strong>Fail</strong>";
         default:
             return status;
     }

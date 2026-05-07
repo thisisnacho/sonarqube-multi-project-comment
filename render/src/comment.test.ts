@@ -34,7 +34,7 @@ describe("renderComment", () => {
 
   it("renders an unanalysed project as 'Not analyzed'", () => {
     const out = renderComment([passingResult({ analyzed: false })], cloudOpts);
-    expect(out).toMatch(/\| Not analyzed \| - \| - \| - \| - \|/);
+    expect(out).toContain("| Not analyzed | - | - | - | - |");
   });
 
   it("uses qg-{state}-20px badge for cloud icon style", () => {
