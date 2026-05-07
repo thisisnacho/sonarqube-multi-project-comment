@@ -61,7 +61,7 @@ function renderRow(r: ProjectResult, opts: RenderOptions): string {
   );
   const fixedLink = linkedIcon(
     "Fixed",
-    `${commonIcon}/fixed-16px.png`,
+    fixedIconUrl(commonIcon, opts.iconStyle),
     `${formatCount(fixedCount)} Fixed`,
     fixedUrl,
   );
@@ -118,6 +118,14 @@ function stackedPercent(
     url,
   );
   return `${newRow}<br>${postRow}`;
+}
+
+function fixedIconUrl(commonIcon: string, style: IconStyle): string {
+  // SonarCloud's icon set has no dedicated `fixed` icon; fall back to the
+  // green `passed` check, which carries the same positive sentiment.
+  return style === "cloud"
+    ? `${commonIcon}/passed-16px.png`
+    : `${commonIcon}/fixed-16px.png`;
 }
 
 function gateBadgeUrl(iconBaseUrl: string, style: IconStyle, state: IconState): string {

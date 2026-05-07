@@ -36299,7 +36299,7 @@ function renderRow(r, opts) {
     const fixedCount = r.issues.fixed;
     const acceptedCount = r.issues.accepted;
     const newLink = linkedIcon("New", `${commonIcon}/${countState(newCount)}-16px.png`, `${formatCount(newCount)} New`, newUrl);
-    const fixedLink = linkedIcon("Fixed", `${commonIcon}/fixed-16px.png`, `${formatCount(fixedCount)} Fixed`, fixedUrl);
+    const fixedLink = linkedIcon("Fixed", fixedIconUrl(commonIcon, opts.iconStyle), `${formatCount(fixedCount)} Fixed`, fixedUrl);
     const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(acceptedCount)} Acc.`, acceptedUrl);
     const issuesCell = `${newLink}<br>${fixedLink}<br>${acceptedLink}`;
     const securityCell = linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, securityUrl);
@@ -36311,6 +36311,13 @@ function stackedPercent(newValue, postValue, alt, commonIcon, url) {
     const newRow = linkedIcon(alt, `${commonIcon}/${pctState(newValue)}-16px.png`, pctLabel(newValue, "new"), url);
     const postRow = linkedIcon(alt, `${commonIcon}/${pctState(postValue)}-16px.png`, pctLabel(postValue, "post-merge"), url);
     return `${newRow}<br>${postRow}`;
+}
+function fixedIconUrl(commonIcon, style) {
+    // SonarCloud's icon set has no dedicated `fixed` icon; fall back to the
+    // green `passed` check, which carries the same positive sentiment.
+    return style === "cloud"
+        ? `${commonIcon}/passed-16px.png`
+        : `${commonIcon}/fixed-16px.png`;
 }
 function gateBadgeUrl(iconBaseUrl, style, state) {
     return style === "cloud"
