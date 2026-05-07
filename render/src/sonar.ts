@@ -18,11 +18,11 @@ export class SonarClient {
   }
 
   get hostUrl(): string {
-    return this.config.hostUrl.replace(/\/+$/, "");
+    return stripTrailingSlash(this.config.hostUrl);
   }
 
   get iconBaseUrl(): string {
-    return this.config.iconBaseUrl.replace(/\/+$/, "");
+    return stripTrailingSlash(this.config.iconBaseUrl);
   }
 
   private url(path: string, params: Record<string, string | undefined>): string {
@@ -31,7 +31,8 @@ export class SonarClient {
       if (v !== undefined && v !== "") search.set(k, v);
     }
     const qs = search.toString();
-    return `${this.hostUrl}${path}${qs ? `?${qs}` : ""}`;
+    const suffix = qs ? `?${qs}` : "";
+    return `${this.hostUrl}${path}${suffix}`;
   }
 
   private async get<T>(path: string, params: Record<string, string | undefined>): Promise<T | undefined> {
@@ -167,6 +168,12 @@ function parseFloatOrNull(value: string | undefined): number | null {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function stripTrailingSlash(s: string): string {
+  let result = s;
+  while (result.endsWith("/")) result = result.slice(0, -1);
+  return result;
 }
 
 export function parseReportTask(content: string): ReportTask {

@@ -12,17 +12,15 @@ export interface RenderOptions {
 }
 
 export function renderComment(results: ProjectResult[], opts: RenderOptions): string {
-  const lines: string[] = [];
-  lines.push(`## ${opts.header}`);
-  lines.push("");
-  lines.push("| Project | Gate | Issues | Security | Coverage | Duplications |");
-  lines.push("| --- | --- | --- | --- | --- | --- |");
-  for (const r of results) {
-    lines.push(renderRow(r, opts));
-  }
+  const lines = [
+    `## ${opts.header}`,
+    "",
+    "| Project | Gate | Issues | Security | Coverage | Duplications |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...results.map((r) => renderRow(r, opts)),
+  ];
   if (opts.footer) {
-    lines.push("");
-    lines.push(`<sub>${opts.footer}</sub>`);
+    lines.push("", `<sub>${opts.footer}</sub>`);
   }
   return lines.join("\n") + "\n";
 }

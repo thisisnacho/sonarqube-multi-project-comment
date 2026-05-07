@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { overallQualityGate, renderComment } from "./comment.js";
-import { SonarClient } from "./sonar.js";
+import { SonarClient, stripTrailingSlash } from "./sonar.js";
 import {
   loadFromProjects,
   loadFromReportTaskFiles,
@@ -85,7 +85,7 @@ function defaultIconBase(style: "cloud" | "community-plugin", sonarHostUrl: stri
   if (style === "cloud") {
     return "https://sonarsource.github.io/sonarcloud-github-static-resources/v2";
   }
-  return `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
+  return `${stripTrailingSlash(sonarHostUrl)}/static/communityBranchPlugin`;
 }
 
-void run();
+await run();
