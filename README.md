@@ -9,6 +9,8 @@ If your monorepo runs the scanner once per project (matrix build, multiple
 project. Disable per-project PR decoration in SonarQube and use this action
 instead.
 
+![Aggregated SonarQube PR comment showing one row per project with quality gate, new and accepted issues, security hotspots, coverage, and duplications](docs/screenshot.png)
+
 ## Usage
 
 ```yaml
