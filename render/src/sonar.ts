@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import type { IssueCounts, ProjectResult, QualityGateStatus, ReportTask, SonarConfig } from "./types";
+import type { IssueCounts, ProjectResult, QualityGateStatus, ReportTask, SonarConfig } from "./types.js";
 
 const MEASURE_METRICS = [
   "new_coverage",

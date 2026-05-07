@@ -1,4 +1,4 @@
-import type { ProjectResult, QualityGateStatus } from "./types";
+import type { ProjectResult, QualityGateStatus } from "./types.js";
 
 type IconState = "passed" | "failed" | "no-data";
 

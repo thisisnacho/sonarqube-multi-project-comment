@@ -3,14 +3,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { overallQualityGate, renderComment } from "./comment";
-import { SonarClient } from "./sonar";
+import { overallQualityGate, renderComment } from "./comment.js";
+import { SonarClient } from "./sonar.js";
 import {
   loadFromProjects,
   loadFromReportTaskFiles,
   parseProjectsInput,
-} from "./sources";
-import type { ProjectResult, SonarConfig } from "./types";
+} from "./sources.js";
+import type { ProjectResult, SonarConfig } from "./types.js";
 
 async function run(): Promise<void> {
   try {

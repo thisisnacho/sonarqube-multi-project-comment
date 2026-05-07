@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as core from "@actions/core";
 import * as glob from "@actions/glob";
-import { parseReportTask, SonarClient } from "./sonar";
-import type { ProjectInput, ProjectResult } from "./types";
+import { parseReportTask, SonarClient } from "./sonar.js";
+import type { ProjectInput, ProjectResult } from "./types.js";
 
 export function parseProjectsInput(raw: string): ProjectInput[] {
   if (!raw.trim()) return [];

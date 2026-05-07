@@ -20,10 +20,10 @@ jobs:
         project: [alpha, beta, gamma]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: SonarSource/sonarqube-scan-action@v5
+      - uses: SonarSource/sonarqube-scan-action@v8
         with:
           projectBaseDir: examples/projects/${{ matrix.project }}
           # Block until SonarQube finishes processing so the aggregator can
@@ -40,7 +40,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./
         with:
           sonar-host-url: ${{ vars.SONAR_HOST_URL }}
