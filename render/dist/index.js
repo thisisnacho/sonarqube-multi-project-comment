@@ -28668,9 +28668,10 @@ function pctState(value) {
     return value === null ? "no-data" : "passed";
 }
 function pctLabel(value, qualifier) {
-    if (value === null)
-        return `No ${qualifier} data`;
-    return `${value.toFixed(1)}% ${qualifier}`;
+    if (qualifier === "post-merge") {
+        return value === null ? "No data if merged" : `~${value.toFixed(1)}% if merged`;
+    }
+    return value === null ? "No new data" : `${value.toFixed(1)}% new`;
 }
 function formatCount(count) {
     return count === null ? "?" : String(count);

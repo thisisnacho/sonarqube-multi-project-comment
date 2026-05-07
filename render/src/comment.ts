@@ -149,9 +149,11 @@ function pctState(value: number | null): IconState {
   return value === null ? "no-data" : "passed";
 }
 
-function pctLabel(value: number | null, qualifier: string): string {
-  if (value === null) return `No ${qualifier} data`;
-  return `${value.toFixed(1)}% ${qualifier}`;
+function pctLabel(value: number | null, qualifier: "new" | "post-merge"): string {
+  if (qualifier === "post-merge") {
+    return value === null ? "No data if merged" : `~${value.toFixed(1)}% if merged`;
+  }
+  return value === null ? "No new data" : `${value.toFixed(1)}% new`;
 }
 
 function formatCount(count: number | null): string {

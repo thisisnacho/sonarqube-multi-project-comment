@@ -18,6 +18,16 @@ jobs:
         with:
           # Sonar uses git blame for new-code detection; a shallow clone breaks it.
           fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: render/package-lock.json
+      - name: Install + run tests with coverage
+        working-directory: render
+        run: |
+          npm ci
+          npm run test:coverage
       - uses: SonarSource/sonarqube-scan-action@v8
         with:
           args: -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
