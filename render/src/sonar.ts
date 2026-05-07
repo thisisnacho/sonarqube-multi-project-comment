@@ -78,9 +78,8 @@ export class SonarClient {
       return emptyResult(label, projectKey, dashboardUrl, status, false);
     }
 
-    const [newIssues, fixedIssues, acceptedIssues, measures] = await Promise.all([
+    const [newIssues, acceptedIssues, measures] = await Promise.all([
       this.countIssues(projectKey, { pullRequest, inNewCodePeriod: "true", resolved: "false" }),
-      this.countIssues(projectKey, { fixedInPullRequest: pullRequest }),
       this.countIssues(projectKey, { pullRequest, issueStatuses: "ACCEPTED" }),
       this.fetchMeasures(projectKey, pullRequest),
     ]);
@@ -92,7 +91,6 @@ export class SonarClient {
       analyzed: true,
       issues: {
         new: newIssues,
-        fixed: fixedIssues,
         accepted: acceptedIssues,
       } satisfies IssueCounts,
       newSecurityHotspots: parseIntOrNull(measures.new_security_hotspots) ?? 0,
@@ -145,7 +143,7 @@ function emptyResult(
     projectKey,
     qualityGate,
     analyzed,
-    issues: { new: null, fixed: null, accepted: null },
+    issues: { new: null, accepted: null },
     newSecurityHotspots: null,
     newCoverage: null,
     coverage: null,

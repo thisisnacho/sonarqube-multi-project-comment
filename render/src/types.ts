@@ -7,7 +7,6 @@ export interface ProjectInput {
 
 export interface IssueCounts {
   new: number | null;
-  fixed: number | null;
   accepted: number | null;
 }
 

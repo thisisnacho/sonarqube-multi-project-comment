@@ -35,43 +35,37 @@ function renderRow(r: ProjectResult, opts: RenderOptions): string {
     return `| ${projectCell} | Not analyzed | - | - | - | - |`;
   }
 
+  const host = baseHost(r.dashboardUrl);
+  const pr = prFrom(r.dashboardUrl);
+  const key = encodeKey(r.projectKey);
+
   const gateState = qualityGateState(r.qualityGate);
   const gateText = qualityGateText(r.qualityGate);
   const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
   const gateCell = linkedIcon("Gate", gateIcon, gateText, r.dashboardUrl);
 
-  const issuesUrl = (extra: string) => `${baseHost(r.dashboardUrl)}/project/issues?id=${encodeKey(r.projectKey)}&${extra}`;
-  const newUrl = issuesUrl(`pullRequest=${prFrom(r.dashboardUrl)}&resolved=false`);
-  const fixedUrl = issuesUrl(`fixedInPullRequest=${prFrom(r.dashboardUrl)}`);
-  const acceptedUrl = issuesUrl(`pullRequest=${prFrom(r.dashboardUrl)}&issueStatus=ACCEPTED`);
-  const securityUrl = `${baseHost(r.dashboardUrl)}/security_hotspots?id=${encodeKey(r.projectKey)}&pullRequest=${prFrom(r.dashboardUrl)}`;
-  const coverageUrl = `${baseHost(r.dashboardUrl)}/component_measures?id=${encodeKey(r.projectKey)}&metric=new_coverage&pullRequest=${prFrom(r.dashboardUrl)}&view=list`;
-  const duplicationsUrl = `${baseHost(r.dashboardUrl)}/component_measures?id=${encodeKey(r.projectKey)}&metric=new_duplicated_lines_density&pullRequest=${prFrom(r.dashboardUrl)}&view=list`;
+  const newCodeFilter = `issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true`;
+  const newUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}&${newCodeFilter}`;
+  const acceptedUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}&issueStatuses=ACCEPTED`;
+  const securityUrl = `${host}/project/security_hotspots?id=${key}&pullRequest=${pr}&${newCodeFilter}`;
+  const coverageUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_coverage&view=list`;
+  const duplicationsUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_duplicated_lines_density&view=list`;
 
   const commonIcon = `${iconBaseUrl}/common`;
 
-  const newCount = r.issues.new;
-  const fixedCount = r.issues.fixed;
-  const acceptedCount = r.issues.accepted;
   const newLink = linkedIcon(
     "New",
-    `${commonIcon}/${countState(newCount)}-16px.png`,
-    `${formatCount(newCount)} New`,
+    `${commonIcon}/${countState(r.issues.new)}-16px.png`,
+    `${formatCount(r.issues.new)} New`,
     newUrl,
-  );
-  const fixedLink = linkedIcon(
-    "Fixed",
-    fixedIconUrl(commonIcon, opts.iconStyle),
-    `${formatCount(fixedCount)} Fixed`,
-    fixedUrl,
   );
   const acceptedLink = linkedIcon(
     "Accepted",
     `${commonIcon}/accepted-16px.png`,
-    `${formatCount(acceptedCount)} Acc.`,
+    `${formatCount(r.issues.accepted)} Acc.`,
     acceptedUrl,
   );
-  const issuesCell = `${newLink}<br>${fixedLink}<br>${acceptedLink}`;
+  const issuesCell = `${newLink}<br>${acceptedLink}`;
 
   const securityCell = linkedIcon(
     "Security",
@@ -118,14 +112,6 @@ function stackedPercent(
     url,
   );
   return `${newRow}<br>${postRow}`;
-}
-
-function fixedIconUrl(commonIcon: string, style: IconStyle): string {
-  // SonarCloud's icon set has no dedicated `fixed` icon; fall back to the
-  // green `passed` check, which carries the same positive sentiment.
-  return style === "cloud"
-    ? `${commonIcon}/passed-16px.png`
-    : `${commonIcon}/fixed-16px.png`;
 }
 
 function gateBadgeUrl(iconBaseUrl: string, style: IconStyle, state: IconState): string {

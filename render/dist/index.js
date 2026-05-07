@@ -36283,25 +36283,23 @@ function renderRow(r, opts) {
     if (!r.analyzed) {
         return `| ${projectCell} | Not analyzed | - | - | - | - |`;
     }
+    const host = baseHost(r.dashboardUrl);
+    const pr = prFrom(r.dashboardUrl);
+    const key = encodeKey(r.projectKey);
     const gateState = qualityGateState(r.qualityGate);
     const gateText = qualityGateText(r.qualityGate);
     const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
     const gateCell = linkedIcon("Gate", gateIcon, gateText, r.dashboardUrl);
-    const issuesUrl = (extra) => `${baseHost(r.dashboardUrl)}/project/issues?id=${encodeKey(r.projectKey)}&${extra}`;
-    const newUrl = issuesUrl(`pullRequest=${prFrom(r.dashboardUrl)}&resolved=false`);
-    const fixedUrl = issuesUrl(`fixedInPullRequest=${prFrom(r.dashboardUrl)}`);
-    const acceptedUrl = issuesUrl(`pullRequest=${prFrom(r.dashboardUrl)}&issueStatus=ACCEPTED`);
-    const securityUrl = `${baseHost(r.dashboardUrl)}/security_hotspots?id=${encodeKey(r.projectKey)}&pullRequest=${prFrom(r.dashboardUrl)}`;
-    const coverageUrl = `${baseHost(r.dashboardUrl)}/component_measures?id=${encodeKey(r.projectKey)}&metric=new_coverage&pullRequest=${prFrom(r.dashboardUrl)}&view=list`;
-    const duplicationsUrl = `${baseHost(r.dashboardUrl)}/component_measures?id=${encodeKey(r.projectKey)}&metric=new_duplicated_lines_density&pullRequest=${prFrom(r.dashboardUrl)}&view=list`;
+    const newCodeFilter = `issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true`;
+    const newUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}&${newCodeFilter}`;
+    const acceptedUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}&issueStatuses=ACCEPTED`;
+    const securityUrl = `${host}/project/security_hotspots?id=${key}&pullRequest=${pr}&${newCodeFilter}`;
+    const coverageUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_coverage&view=list`;
+    const duplicationsUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_duplicated_lines_density&view=list`;
     const commonIcon = `${iconBaseUrl}/common`;
-    const newCount = r.issues.new;
-    const fixedCount = r.issues.fixed;
-    const acceptedCount = r.issues.accepted;
-    const newLink = linkedIcon("New", `${commonIcon}/${countState(newCount)}-16px.png`, `${formatCount(newCount)} New`, newUrl);
-    const fixedLink = linkedIcon("Fixed", fixedIconUrl(commonIcon, opts.iconStyle), `${formatCount(fixedCount)} Fixed`, fixedUrl);
-    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(acceptedCount)} Acc.`, acceptedUrl);
-    const issuesCell = `${newLink}<br>${fixedLink}<br>${acceptedLink}`;
+    const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)} New`, newUrl);
+    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)} Acc.`, acceptedUrl);
+    const issuesCell = `${newLink}<br>${acceptedLink}`;
     const securityCell = linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, securityUrl);
     const coverageCell = stackedPercent(r.newCoverage, r.coverage, "Coverage", commonIcon, coverageUrl);
     const duplicationsCell = stackedPercent(r.newDuplications, r.duplications, "Duplications", commonIcon, duplicationsUrl);
@@ -36311,13 +36309,6 @@ function stackedPercent(newValue, postValue, alt, commonIcon, url) {
     const newRow = linkedIcon(alt, `${commonIcon}/${pctState(newValue)}-16px.png`, pctLabel(newValue, "new"), url);
     const postRow = linkedIcon(alt, `${commonIcon}/${pctState(postValue)}-16px.png`, pctLabel(postValue, "post-merge"), url);
     return `${newRow}<br>${postRow}`;
-}
-function fixedIconUrl(commonIcon, style) {
-    // SonarCloud's icon set has no dedicated `fixed` icon; fall back to the
-    // green `passed` check, which carries the same positive sentiment.
-    return style === "cloud"
-        ? `${commonIcon}/passed-16px.png`
-        : `${commonIcon}/fixed-16px.png`;
 }
 function gateBadgeUrl(iconBaseUrl, style, state) {
     return style === "cloud"
@@ -36462,9 +36453,8 @@ class SonarClient {
         if (status === "NONE") {
             return emptyResult(label, projectKey, dashboardUrl, status, false);
         }
-        const [newIssues, fixedIssues, acceptedIssues, measures] = await Promise.all([
+        const [newIssues, acceptedIssues, measures] = await Promise.all([
             this.countIssues(projectKey, { pullRequest, inNewCodePeriod: "true", resolved: "false" }),
-            this.countIssues(projectKey, { fixedInPullRequest: pullRequest }),
             this.countIssues(projectKey, { pullRequest, issueStatuses: "ACCEPTED" }),
             this.fetchMeasures(projectKey, pullRequest),
         ]);
@@ -36475,7 +36465,6 @@ class SonarClient {
             analyzed: true,
             issues: {
                 new: newIssues,
-                fixed: fixedIssues,
                 accepted: acceptedIssues,
             },
             newSecurityHotspots: parseIntOrNull(measures.new_security_hotspots) ?? 0,
@@ -36513,7 +36502,7 @@ function emptyResult(label, projectKey, dashboardUrl, qualityGate, analyzed) {
         projectKey,
         qualityGate,
         analyzed,
-        issues: { new: null, fixed: null, accepted: null },
+        issues: { new: null, accepted: null },
         newSecurityHotspots: null,
         newCoverage: null,
         coverage: null,
