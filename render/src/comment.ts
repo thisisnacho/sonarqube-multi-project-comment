@@ -4,14 +4,12 @@ type IconState = "passed" | "failed" | "no-data";
 
 export interface RenderOptions {
   header: string;
-  marker: string;
   iconBaseUrl: string;
   footer?: string;
 }
 
 export function renderComment(results: ProjectResult[], opts: RenderOptions): string {
   const lines: string[] = [];
-  lines.push(opts.marker);
   lines.push(`## ${opts.header}`);
   lines.push("");
   lines.push("| Project | Gate | Issues | Security | Coverage | Duplications |");

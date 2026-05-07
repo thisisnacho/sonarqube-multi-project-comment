@@ -6,6 +6,7 @@ branding:
   color: blue
 
 inputs:
+  # ---- Sonar / data inputs ----
   sonar-host-url:
     description: Base URL of the SonarQube/SonarCloud instance (e.g. https://sonarcloud.io).
     required: false
@@ -33,47 +34,86 @@ inputs:
   pr-number:
     description: Pull request number. Defaults to the PR number from the workflow context.
     required: false
-  github-token:
-    description: Token used to read/write PR comments. Defaults to `github.token`.
-    required: false
-    default: ${{ github.token }}
   comment-header:
     description: Heading rendered at the top of the aggregated comment.
     required: false
     default: SonarQube PR analysis
-  comment-marker:
-    description: Hidden HTML marker used to find this comment on subsequent runs.
-    required: false
-    default: <!-- sonarqube-multi-project-comment -->
   icon-base-url:
     description: |
       Base URL for status icons. Defaults to the SonarQube community branch
-      plugin path (`<host>/static/communityBranchPlugin`). Override if your
-      instance hosts icons elsewhere.
+      plugin path (`<host>/static/communityBranchPlugin`).
     required: false
   footer:
     description: Optional text rendered below the table (wrapped in <sub>).
     required: false
-  hide-previous:
-    description: |
-      When true, hide the previous aggregated comment as OUTDATED via GitHub's
-      `minimizeComment` mutation and post a fresh comment. When false, edit the
-      existing comment in place.
-    required: false
-    default: 'true'
   fail-on-quality-gate:
     description: Fail the action when any project's quality gate did not pass.
     required: false
     default: 'false'
 
+  # ---- Bubbled-up sticky-pull-request-comment inputs ----
+  github-token:
+    description: Token used to post / update the PR comment. Defaults to `github.token`.
+    required: false
+    default: ${{ github.token }}
+  sticky-header:
+    description: |
+      Unique identifier sticky-pull-request-comment uses to find this comment
+      across runs. Change if you post multiple sticky comments to the same PR.
+    required: false
+    default: sonarqube-aggregate
+  hide-and-recreate:
+    description: |
+      When true, hide the previous aggregated comment as outdated and post a
+      fresh one. When false, edit the existing comment in place.
+    required: false
+    default: 'true'
+  hide-classify:
+    description: |
+      Classifier passed to GitHub's minimizeComment mutation when hiding the
+      previous comment. One of OUTDATED, RESOLVED, OFF_TOPIC, SPAM, DUPLICATE.
+    required: false
+    default: OUTDATED
+  skip-unchanged:
+    description: Skip posting when the rendered body matches the existing comment.
+    required: false
+    default: 'true'
+
 outputs:
-  comment-id:
-    description: ID of the aggregated PR comment that was created or updated.
   quality-gate:
-    description: Overall quality gate (`OK` if every project passed, otherwise `ERROR`).
+    description: Overall quality gate (`OK` if every project passed, otherwise `ERROR` / `NONE`).
+    value: ${{ steps.render.outputs.quality-gate }}
   results-json:
-    description: JSON array of per-project results, useful for downstream steps.
+    description: JSON array of per-project results.
+    value: ${{ steps.render.outputs.results-json }}
+  body-path:
+    description: Path to the rendered comment body file.
+    value: ${{ steps.render.outputs.body-path }}
 
 runs:
-  using: node20
-  main: dist/index.js
+  using: composite
+  steps:
+    - id: render
+      uses: ./render
+      with:
+        sonar-host-url: ${{ inputs.sonar-host-url }}
+        sonar-token: ${{ inputs.sonar-token }}
+        projects: ${{ inputs.projects }}
+        report-task-files: ${{ inputs.report-task-files }}
+        results-json: ${{ inputs.results-json }}
+        pr-number: ${{ inputs.pr-number }}
+        comment-header: ${{ inputs.comment-header }}
+        icon-base-url: ${{ inputs.icon-base-url }}
+        footer: ${{ inputs.footer }}
+        fail-on-quality-gate: ${{ inputs.fail-on-quality-gate }}
+
+    - if: steps.render.outputs.body-path != ''
+      uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+      with:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        header: ${{ inputs.sticky-header }}
+        path: ${{ steps.render.outputs.body-path }}
+        number: ${{ inputs.pr-number }}
+        hide_and_recreate: ${{ inputs.hide-and-recreate }}
+        hide_classify: ${{ inputs.hide-classify }}
+        skip_unchanged: ${{ inputs.skip-unchanged }}

@@ -10,33 +10,56 @@ project. Disable per-project PR decoration in SonarQube and use this action
 instead — one comment, easier to skim, history collapses cleanly on every
 re-run.
 
+## How it works
+
+This is a composite action. It runs two steps:
+
+1. A bundled Node sub-action (`./render`) gathers data from the SonarQube API
+   and renders the markdown table.
+2. [`marocchino/sticky-pull-request-comment`][sticky] posts the body and hides
+   the previous aggregated comment as outdated.
+
+[sticky]: https://github.com/marocchino/sticky-pull-request-comment
+
 ## Inputs
 
-You can feed the action three different ways. They can also be combined.
+### Data sources (pick one or combine)
 
 | Input | Description |
 | --- | --- |
 | `sonar-host-url` | Base URL of the SonarQube/SonarCloud instance. |
 | `sonar-token` | Token used to authenticate against the SonarQube API. |
-| `projects` | Newline- or comma-separated list of `LABEL|KEY` (or just `KEY`). |
+| `projects` | Newline- or comma-separated list of `LABEL\|KEY` (or just `KEY`). |
 | `report-task-files` | Glob of `report-task.txt` files produced by the scanner. |
 | `results-json` | Pre-built JSON array of `ProjectResult` (escape hatch). |
-| `pr-number` | PR number override. Defaults to `github.event.pull_request.number`. |
-| `github-token` | Token for PR comment read/write. Defaults to `github.token`. |
-| `comment-header` | Heading. Defaults to `SonarQube PR analysis`. |
-| `comment-marker` | Hidden HTML marker used to locate the comment on re-runs. |
-| `icon-base-url` | Base URL for status icons. Defaults to the community branch plugin path. |
-| `footer` | Optional text rendered below the table. |
-| `hide-previous` | Hide the prior comment as `OUTDATED` and post fresh (default `true`). When `false`, edits in place. |
-| `fail-on-quality-gate` | Fail the action when any project's gate is `ERROR`. |
+
+### Rendering
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `comment-header` | `SonarQube PR analysis` | Heading. |
+| `icon-base-url` | `<host>/static/communityBranchPlugin` | Base URL for status icons. |
+| `footer` | _(set)_ | Text rendered below the table inside `<sub>`. |
+| `pr-number` | from context | PR number override. |
+| `fail-on-quality-gate` | `false` | Fail the job when any gate is `ERROR`. |
+
+### Sticky comment behaviour (passed through to `sticky-pull-request-comment`)
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `github-token` | `${{ github.token }}` | Token used to read/write PR comments. |
+| `sticky-header` | `sonarqube-aggregate` | Identifier sticky uses to dedupe its comment. |
+| `hide-and-recreate` | `true` | Hide previous aggregated comment, post fresh. |
+| `hide-classify` | `OUTDATED` | Classifier for the `minimizeComment` mutation. |
+| `skip-unchanged` | `true` | Skip when the rendered body matches the existing comment. |
 
 ## Outputs
 
 | Output | Description |
 | --- | --- |
-| `comment-id` | ID of the comment that was created or updated. |
 | `quality-gate` | `OK` if every project passed, otherwise `ERROR` / `NONE`. |
 | `results-json` | JSON array of per-project results. |
+| `body-path` | Path to the rendered comment body file. |
 
 ## Usage
 
@@ -63,8 +86,6 @@ sonar-summary:
 
 ### Auto-discovery from `report-task.txt`
 
-Have each scan job upload its `report-task.txt` artifact, then aggregate:
-
 ```yaml
 - uses: actions/download-artifact@v4
   with:
@@ -85,17 +106,8 @@ Have each scan job upload its `report-task.txt` artifact, then aggregate:
     results-json: ${{ steps.collect.outputs.results }}
 ```
 
-The JSON array follows the `ProjectResult` shape exported from `src/types.ts`.
-
-## Behaviour
-
-- The comment is found via the hidden `comment-marker` HTML comment so
-  successive runs update the same thread.
-- With `hide-previous: true` (default) the previous aggregated comment is
-  collapsed as `OUTDATED` via GitHub's `minimizeComment` GraphQL mutation and a
-  fresh comment is posted; this matches the UX of `marocchino/sticky-pull-request-comment`
-  with `hide_classify: OUTDATED`.
-- Set `hide-previous: false` to edit the existing comment in place.
+The JSON array follows the `ProjectResult` shape exported from
+`render/src/types.ts`.
 
 ## Permissions
 
@@ -108,9 +120,10 @@ permissions:
 ## Development
 
 ```sh
+cd render
 npm install
-npm run build   # bundles src/ → dist/index.js with ncc
+npm run build   # bundles src/ → render/dist/index.js with ncc
 ```
 
-The bundled `dist/` is committed because GitHub Actions runs the published
-`main` file directly.
+The bundled `render/dist/` is committed because GitHub Actions runs the
+sub-action's `main` file directly.

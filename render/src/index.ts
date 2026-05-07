@@ -1,7 +1,9 @@
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { overallQualityGate, renderComment } from "./comment";
-import { upsertComment } from "./github";
 import { SonarClient } from "./sonar";
 import {
   loadFromProjects,
@@ -11,8 +13,6 @@ import {
 } from "./sources";
 import type { ProjectResult, SonarConfig } from "./types";
 
-const DEFAULT_MARKER = "<!-- sonarqube-multi-project-comment -->";
-
 async function run(): Promise<void> {
   try {
     const sonarHostUrl = core.getInput("sonar-host-url");
@@ -20,11 +20,8 @@ async function run(): Promise<void> {
     const projectsRaw = core.getInput("projects");
     const reportTaskFiles = core.getInput("report-task-files");
     const resultsJson = core.getInput("results-json");
-    const githubToken = core.getInput("github-token", { required: true });
     const commentHeader = core.getInput("comment-header") || "SonarQube PR analysis";
     const failOnGate = core.getBooleanInput("fail-on-quality-gate");
-    const hidePrevious = core.getBooleanInput("hide-previous");
-    const marker = core.getInput("comment-marker") || DEFAULT_MARKER;
     const iconBaseUrl =
       core.getInput("icon-base-url") || `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
     const footer =
@@ -65,36 +62,25 @@ async function run(): Promise<void> {
       results.push(...(await loadFromReportTaskFiles(client, reportTaskFiles, pullRequest, true)));
     }
 
+    const overall = overallQualityGate(results);
+    core.setOutput("quality-gate", overall);
+    core.setOutput("results-json", JSON.stringify(results));
+
     if (results.length === 0) {
-      core.warning("No SonarQube results to aggregate; skipping comment.");
-      core.setOutput("quality-gate", "NONE");
+      core.warning("No SonarQube results to aggregate; skipping comment body.");
       return;
     }
 
     const body = renderComment(results, {
       header: commentHeader,
-      marker,
       iconBaseUrl,
       footer,
     });
 
-    const overall = overallQualityGate(results);
-    core.setOutput("quality-gate", overall);
-    core.setOutput("results-json", JSON.stringify(results));
-
-    const octokit = github.getOctokit(githubToken);
-    const repo = github.context.repo;
-    const issueNumber = Number.parseInt(pullRequest, 10);
-
-    const { commentId } = await upsertComment({
-      octokit,
-      repo,
-      issueNumber,
-      marker,
-      body,
-      hidePrevious,
-    });
-    core.setOutput("comment-id", commentId);
+    const tmpDir = process.env.RUNNER_TEMP || os.tmpdir();
+    const bodyPath = path.join(tmpDir, "sonarqube-multi-project-comment.md");
+    await fs.writeFile(bodyPath, body, "utf8");
+    core.setOutput("body-path", bodyPath);
 
     if (failOnGate && overall === "ERROR") {
       core.setFailed("One or more SonarQube quality gates failed.");
