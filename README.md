@@ -88,7 +88,7 @@ querying the API for results.
 | `github-token` | `${{ github.token }}` | Token used to read/write PR comments. |
 | `sticky-header` | `sonarqube-aggregate` | Identifier `sticky-pull-request-comment` uses to dedupe. |
 | `hide-and-recreate` | `true` | Hide the previous aggregated comment and post fresh. |
-| `hide-classify` | `OUTDATED` | Classifier for GitHub's `minimizeComment` mutation. |
+| `hide-classify` | `OUTDATED` | Classifier for GitHub's `minimizeComment` mutation. One of `OUTDATED`, `RESOLVED`, `OFF_TOPIC`, `SPAM`, `DUPLICATE`. |
 | `skip-unchanged` | `true` | Skip posting when the body matches the existing comment. |
 
 ## Outputs
