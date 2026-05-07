@@ -28605,7 +28605,7 @@ function renderRow(r, opts) {
     const { iconBaseUrl } = opts;
     const projectCell = link(r.label, r.dashboardUrl);
     if (!r.analyzed) {
-        return `| ${projectCell} | Not analyzed | - | - | - | - |`;
+        return `| ${projectCell} | Not&nbsp;analyzed | - | - | - | - |`;
     }
     const host = baseHost(r.dashboardUrl);
     const pr = prFrom(r.dashboardUrl);
@@ -28621,8 +28621,8 @@ function renderRow(r, opts) {
     const coverageUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_coverage&view=list`;
     const duplicationsUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}&metric=new_duplicated_lines_density&view=list`;
     const commonIcon = `${iconBaseUrl}/common`;
-    const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)} New`, newUrl);
-    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)} Acc.`, acceptedUrl);
+    const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)}&nbsp;New`, newUrl);
+    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)}&nbsp;Acc.`, acceptedUrl);
     const issuesCell = `${newLink}<br>${acceptedLink}`;
     const securityCell = linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, securityUrl);
     const coverageCell = stackedPercent(r.newCoverage, r.coverage, "Coverage", commonIcon, coverageUrl);
@@ -28669,15 +28669,20 @@ function pctState(value) {
 }
 function pctLabel(value, qualifier) {
     if (qualifier === "post-merge") {
-        return value === null ? "No data if merged" : `~${value.toFixed(1)}% if merged`;
+        return value === null
+            ? "No&nbsp;data&nbsp;if&nbsp;merged"
+            : `~${value.toFixed(1)}%&nbsp;if&nbsp;merged`;
     }
-    return value === null ? "No new data" : `${value.toFixed(1)}% new`;
+    return value === null ? "No&nbsp;new&nbsp;data" : `${value.toFixed(1)}%&nbsp;new`;
 }
 function formatCount(count) {
     return count === null ? "?" : String(count);
 }
 function linkedIcon(alt, iconUrl, text, href) {
-    return `<a href="${href}"><img src="${iconUrl}" alt="${alt}"> ${text}</a>`;
+    // &nbsp; (non-breaking space) keeps the icon and label on the same line
+    // when the cell is narrow; a regular space lets GitHub's table renderer
+    // wrap them onto separate lines.
+    return `<a href="${href}"><img src="${iconUrl}" alt="${alt}">&nbsp;${text}</a>`;
 }
 function link(text, href) {
     return `<a href="${href}">${text}</a>`;

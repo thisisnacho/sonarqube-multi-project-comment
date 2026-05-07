@@ -30,7 +30,7 @@ function renderRow(r: ProjectResult, opts: RenderOptions): string {
   const projectCell = link(r.label, r.dashboardUrl);
 
   if (!r.analyzed) {
-    return `| ${projectCell} | Not analyzed | - | - | - | - |`;
+    return `| ${projectCell} | Not&nbsp;analyzed | - | - | - | - |`;
   }
 
   const host = baseHost(r.dashboardUrl);
@@ -54,13 +54,13 @@ function renderRow(r: ProjectResult, opts: RenderOptions): string {
   const newLink = linkedIcon(
     "New",
     `${commonIcon}/${countState(r.issues.new)}-16px.png`,
-    `${formatCount(r.issues.new)} New`,
+    `${formatCount(r.issues.new)}&nbsp;New`,
     newUrl,
   );
   const acceptedLink = linkedIcon(
     "Accepted",
     `${commonIcon}/accepted-16px.png`,
-    `${formatCount(r.issues.accepted)} Acc.`,
+    `${formatCount(r.issues.accepted)}&nbsp;Acc.`,
     acceptedUrl,
   );
   const issuesCell = `${newLink}<br>${acceptedLink}`;
@@ -151,9 +151,11 @@ function pctState(value: number | null): IconState {
 
 function pctLabel(value: number | null, qualifier: "new" | "post-merge"): string {
   if (qualifier === "post-merge") {
-    return value === null ? "No data if merged" : `~${value.toFixed(1)}% if merged`;
+    return value === null
+      ? "No&nbsp;data&nbsp;if&nbsp;merged"
+      : `~${value.toFixed(1)}%&nbsp;if&nbsp;merged`;
   }
-  return value === null ? "No new data" : `${value.toFixed(1)}% new`;
+  return value === null ? "No&nbsp;new&nbsp;data" : `${value.toFixed(1)}%&nbsp;new`;
 }
 
 function formatCount(count: number | null): string {
@@ -161,7 +163,10 @@ function formatCount(count: number | null): string {
 }
 
 function linkedIcon(alt: string, iconUrl: string, text: string, href: string): string {
-  return `<a href="${href}"><img src="${iconUrl}" alt="${alt}"> ${text}</a>`;
+  // &nbsp; (non-breaking space) keeps the icon and label on the same line
+  // when the cell is narrow; a regular space lets GitHub's table renderer
+  // wrap them onto separate lines.
+  return `<a href="${href}"><img src="${iconUrl}" alt="${alt}">&nbsp;${text}</a>`;
 }
 
 function link(text: string, href: string): string {
