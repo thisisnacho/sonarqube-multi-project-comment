@@ -56,8 +56,8 @@ Each line is `LABEL|KEY`, or just `KEY` to use the key as the label. Requires
 <summary><strong>2. <code>report-task-files</code> — auto-discover from scanner output</strong> (best for matrix builds)</summary>
 
 Have each scan job upload its `report-task.txt` artifact, then aggregate.
-The action waits for each Compute Engine task to finish before querying the
-API.
+The action waits for SonarQube to finish processing each scan before
+querying the API for results.
 
 ```yaml
 - uses: actions/download-artifact@v4
