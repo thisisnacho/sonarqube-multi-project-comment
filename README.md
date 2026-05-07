@@ -1,69 +1,15 @@
 # sonarqube-multi-project-comment
 
-A GitHub Action that aggregates quality-gate results from multiple SonarQube
-projects analyzed within the same pull request and posts (or updates) a
-**single** comment summarising all of them.
+Aggregate SonarQube quality-gate results from multiple projects into a
+**single** PR comment — one row per project, hidden as outdated on every
+re-run.
 
 If your monorepo runs the scanner once per project (matrix build, multiple
 `sonar-project.properties`, …) you usually end up with one PR comment per
 project. Disable per-project PR decoration in SonarQube and use this action
-instead — one comment, easier to skim, history collapses cleanly on every
-re-run.
-
-## How it works
-
-This is a composite action. It runs two steps:
-
-1. A bundled Node sub-action (`./render`) gathers data from the SonarQube API
-   and renders the markdown table.
-2. [`marocchino/sticky-pull-request-comment`][sticky] posts the body and hides
-   the previous aggregated comment as outdated.
-
-[sticky]: https://github.com/marocchino/sticky-pull-request-comment
-
-## Inputs
-
-### Data sources (pick one or combine)
-
-| Input | Description |
-| --- | --- |
-| `sonar-host-url` | Base URL of the SonarQube/SonarCloud instance. |
-| `sonar-token` | Token used to authenticate against the SonarQube API. |
-| `projects` | Newline- or comma-separated list of `LABEL\|KEY` (or just `KEY`). |
-| `report-task-files` | Glob of `report-task.txt` files produced by the scanner. |
-| `results-json` | Pre-built JSON array of `ProjectResult` (escape hatch). |
-
-### Rendering
-
-| Input | Default | Description |
-| --- | --- | --- |
-| `comment-header` | `SonarQube PR analysis` | Heading. |
-| `icon-base-url` | `<host>/static/communityBranchPlugin` | Base URL for status icons. |
-| `footer` | _(set)_ | Text rendered below the table inside `<sub>`. |
-| `pr-number` | from context | PR number override. |
-| `fail-on-quality-gate` | `false` | Fail the job when any gate is `ERROR`. |
-
-### Sticky comment behaviour (passed through to `sticky-pull-request-comment`)
-
-| Input | Default | Description |
-| --- | --- | --- |
-| `github-token` | `${{ github.token }}` | Token used to read/write PR comments. |
-| `sticky-header` | `sonarqube-aggregate` | Identifier sticky uses to dedupe its comment. |
-| `hide-and-recreate` | `true` | Hide previous aggregated comment, post fresh. |
-| `hide-classify` | `OUTDATED` | Classifier for the `minimizeComment` mutation. |
-| `skip-unchanged` | `true` | Skip when the rendered body matches the existing comment. |
-
-## Outputs
-
-| Output | Description |
-| --- | --- |
-| `quality-gate` | `OK` if every project passed, otherwise `ERROR` / `NONE`. |
-| `results-json` | JSON array of per-project results. |
-| `body-path` | Path to the rendered comment body file. |
+instead.
 
 ## Usage
-
-### Hard-coded project list
 
 ```yaml
 sonar-summary:
@@ -84,7 +30,34 @@ sonar-summary:
           agents/rag|acme-rag
 ```
 
-### Auto-discovery from `report-task.txt`
+## Data sources
+
+The action needs to know which projects to summarise. Pick whichever fits
+your pipeline — they can also be combined.
+
+<details>
+<summary><strong>1. <code>projects</code> — explicit list</strong> (simplest)</summary>
+
+Each line is `LABEL|KEY`, or just `KEY` to use the key as the label. Requires
+`sonar-host-url` and `sonar-token`.
+
+```yaml
+- uses: thisisnacho/sonarqube-multi-project-comment@v1
+  with:
+    sonar-host-url: ${{ vars.SONAR_HOST_URL }}
+    sonar-token: ${{ secrets.SONAR_TOKEN }}
+    projects: |
+      frontend|acme-frontend
+      backend|acme-backend
+```
+</details>
+
+<details>
+<summary><strong>2. <code>report-task-files</code> — auto-discover from scanner output</strong> (best for matrix builds)</summary>
+
+Have each scan job upload its `report-task.txt` artifact, then aggregate.
+The action waits for each Compute Engine task to finish before querying the
+API.
 
 ```yaml
 - uses: actions/download-artifact@v4
@@ -97,17 +70,49 @@ sonar-summary:
     sonar-token: ${{ secrets.SONAR_TOKEN }}
     report-task-files: sonar-reports/**/report-task.txt
 ```
+</details>
 
-### Inline JSON
+<details>
+<summary><strong>3. <code>results-json</code> — inline pre-built results</strong> (escape hatch)</summary>
+
+For projects scanned outside the standard scanner, or when you want to
+synthesise rows from another tool. The JSON array follows the
+`ProjectResult` shape exported from `render/src/types.ts`.
 
 ```yaml
 - uses: thisisnacho/sonarqube-multi-project-comment@v1
   with:
     results-json: ${{ steps.collect.outputs.results }}
 ```
+</details>
 
-The JSON array follows the `ProjectResult` shape exported from
-`render/src/types.ts`.
+## Inputs
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `sonar-host-url` | — | Base URL of the SonarQube/SonarCloud instance. |
+| `sonar-token` | — | Token used to authenticate against the SonarQube API. |
+| `projects` | — | Newline- or comma-separated list of `LABEL\|KEY` (or just `KEY`). |
+| `report-task-files` | — | Glob of `report-task.txt` files produced by the scanner. |
+| `results-json` | — | Pre-built JSON array of `ProjectResult` results. |
+| `pr-number` | from context | Pull request number override. |
+| `comment-header` | `SonarQube PR analysis` | Heading rendered above the table. |
+| `icon-base-url` | `<host>/static/communityBranchPlugin` | Base URL for status icons. |
+| `footer` | _(set)_ | Text rendered below the table inside `<sub>`. |
+| `fail-on-quality-gate` | `false` | Fail the job when any gate is `ERROR`. |
+| `github-token` | `${{ github.token }}` | Token used to read/write PR comments. |
+| `sticky-header` | `sonarqube-aggregate` | Identifier `sticky-pull-request-comment` uses to dedupe. |
+| `hide-and-recreate` | `true` | Hide the previous aggregated comment and post fresh. |
+| `hide-classify` | `OUTDATED` | Classifier for GitHub's `minimizeComment` mutation. |
+| `skip-unchanged` | `true` | Skip posting when the body matches the existing comment. |
+
+## Outputs
+
+| Output | Description |
+| --- | --- |
+| `quality-gate` | `OK` if every project passed, otherwise `ERROR` / `NONE`. |
+| `results-json` | JSON array of per-project results. |
+| `body-path` | Path to the rendered comment body file. |
 
 ## Permissions
 
@@ -116,6 +121,17 @@ permissions:
   contents: read
   pull-requests: write
 ```
+
+## How it works
+
+This is a composite action. It runs two steps:
+
+1. A bundled Node sub-action (`./render`) gathers data from the SonarQube API
+   and renders the markdown table.
+2. [`marocchino/sticky-pull-request-comment`][sticky] posts the body and hides
+   the previous aggregated comment as outdated.
+
+[sticky]: https://github.com/marocchino/sticky-pull-request-comment
 
 ## Development
 
