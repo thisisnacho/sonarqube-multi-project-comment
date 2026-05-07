@@ -14,6 +14,9 @@ inputs:
   comment-header:
     required: false
     default: SonarQube PR analysis
+  icon-style:
+    required: false
+    default: cloud
   icon-base-url:
     required: false
   footer:

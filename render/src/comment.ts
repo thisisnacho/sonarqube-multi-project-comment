@@ -2,9 +2,12 @@ import type { ProjectResult, QualityGateStatus } from "./types.js";
 
 type IconState = "passed" | "failed" | "no-data";
 
+export type IconStyle = "cloud" | "community-plugin";
+
 export interface RenderOptions {
   header: string;
   iconBaseUrl: string;
+  iconStyle: IconStyle;
   footer?: string;
 }
 
@@ -15,7 +18,7 @@ export function renderComment(results: ProjectResult[], opts: RenderOptions): st
   lines.push("| Project | Gate | Issues | Security | Coverage | Duplications |");
   lines.push("| --- | --- | --- | --- | --- | --- |");
   for (const r of results) {
-    lines.push(renderRow(r, opts.iconBaseUrl));
+    lines.push(renderRow(r, opts));
   }
   if (opts.footer) {
     lines.push("");
@@ -24,7 +27,8 @@ export function renderComment(results: ProjectResult[], opts: RenderOptions): st
   return lines.join("\n") + "\n";
 }
 
-function renderRow(r: ProjectResult, iconBaseUrl: string): string {
+function renderRow(r: ProjectResult, opts: RenderOptions): string {
+  const { iconBaseUrl } = opts;
   const projectCell = link(r.label, r.dashboardUrl);
 
   if (!r.analyzed) {
@@ -33,7 +37,7 @@ function renderRow(r: ProjectResult, iconBaseUrl: string): string {
 
   const gateState = qualityGateState(r.qualityGate);
   const gateText = qualityGateText(r.qualityGate);
-  const gateIcon = `${iconBaseUrl}/checks/QualityGateBadge/${gateState}-16px.png`;
+  const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
   const gateCell = linkedIcon("Gate", gateIcon, gateText, r.dashboardUrl);
 
   const issuesUrl = (extra: string) => `${baseHost(r.dashboardUrl)}/project/issues?id=${encodeKey(r.projectKey)}&${extra}`;
@@ -114,6 +118,12 @@ function stackedPercent(
     url,
   );
   return `${newRow}<br>${postRow}`;
+}
+
+function gateBadgeUrl(iconBaseUrl: string, style: IconStyle, state: IconState): string {
+  return style === "cloud"
+    ? `${iconBaseUrl}/checks/QualityGateBadge/qg-${state}-20px.png`
+    : `${iconBaseUrl}/checks/QualityGateBadge/${state}-16px.png`;
 }
 
 function qualityGateState(status: QualityGateStatus): IconState {

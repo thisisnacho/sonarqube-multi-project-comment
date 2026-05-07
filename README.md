@@ -82,7 +82,8 @@ querying the API for results.
 | `report-task-files` | — | Glob of `report-task.txt` files produced by the scanner. |
 | `pr-number` | from context | Pull request number override. |
 | `comment-header` | `SonarQube PR analysis` | Heading rendered above the table. |
-| `icon-base-url` | `<host>/static/communityBranchPlugin` | Base URL for status icons. |
+| `icon-style` | `cloud` | Where status icons live. `cloud` matches SonarCloud's PR decoration; `community-plugin` is for self-hosted SonarQube with the community branch plugin. |
+| `icon-base-url` | derived from `icon-style` | Override the icon base URL when neither default fits. |
 | `footer` | `Aggregated from per-project SonarQube scans.` | Text rendered below the table inside `<sub>`. |
 | `fail-on-quality-gate` | `false` | Fail the job when any gate is `ERROR`. |
 | `github-token` | `${{ github.token }}` | Token used to read/write PR comments. |

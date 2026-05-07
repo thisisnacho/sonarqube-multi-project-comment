@@ -36269,7 +36269,7 @@ function renderComment(results, opts) {
     lines.push("| Project | Gate | Issues | Security | Coverage | Duplications |");
     lines.push("| --- | --- | --- | --- | --- | --- |");
     for (const r of results) {
-        lines.push(renderRow(r, opts.iconBaseUrl));
+        lines.push(renderRow(r, opts));
     }
     if (opts.footer) {
         lines.push("");
@@ -36277,14 +36277,15 @@ function renderComment(results, opts) {
     }
     return lines.join("\n") + "\n";
 }
-function renderRow(r, iconBaseUrl) {
+function renderRow(r, opts) {
+    const { iconBaseUrl } = opts;
     const projectCell = comment_link(r.label, r.dashboardUrl);
     if (!r.analyzed) {
         return `| ${projectCell} | Not analyzed | - | - | - | - |`;
     }
     const gateState = qualityGateState(r.qualityGate);
     const gateText = qualityGateText(r.qualityGate);
-    const gateIcon = `${iconBaseUrl}/checks/QualityGateBadge/${gateState}-16px.png`;
+    const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
     const gateCell = linkedIcon("Gate", gateIcon, gateText, r.dashboardUrl);
     const issuesUrl = (extra) => `${baseHost(r.dashboardUrl)}/project/issues?id=${encodeKey(r.projectKey)}&${extra}`;
     const newUrl = issuesUrl(`pullRequest=${prFrom(r.dashboardUrl)}&resolved=false`);
@@ -36310,6 +36311,11 @@ function stackedPercent(newValue, postValue, alt, commonIcon, url) {
     const newRow = linkedIcon(alt, `${commonIcon}/${pctState(newValue)}-16px.png`, pctLabel(newValue, "new"), url);
     const postRow = linkedIcon(alt, `${commonIcon}/${pctState(postValue)}-16px.png`, pctLabel(postValue, "post-merge"), url);
     return `${newRow}<br>${postRow}`;
+}
+function gateBadgeUrl(iconBaseUrl, style, state) {
+    return style === "cloud"
+        ? `${iconBaseUrl}/checks/QualityGateBadge/qg-${state}-20px.png`
+        : `${iconBaseUrl}/checks/QualityGateBadge/${state}-16px.png`;
 }
 function qualityGateState(status) {
     switch (status) {
@@ -40016,7 +40022,11 @@ async function run() {
         const reportTaskFiles = getInput("report-task-files");
         const commentHeader = getInput("comment-header") || "SonarQube PR analysis";
         const failOnGate = getBooleanInput("fail-on-quality-gate");
-        const iconBaseUrl = getInput("icon-base-url") || `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
+        const iconStyle = (getInput("icon-style") || "cloud");
+        if (iconStyle !== "cloud" && iconStyle !== "community-plugin") {
+            throw new Error(`icon-style must be "cloud" or "community-plugin", got: ${iconStyle}`);
+        }
+        const iconBaseUrl = getInput("icon-base-url") || defaultIconBase(iconStyle, sonarHostUrl);
         const footer = getInput("footer") || "Aggregated from per-project SonarQube scans.";
         const pullRequestInput = getInput("pr-number");
         const pullRequest = pullRequestInput || `${github_context.payload.pull_request?.number ?? ""}`;
@@ -40049,6 +40059,7 @@ async function run() {
         const body = renderComment(results, {
             header: commentHeader,
             iconBaseUrl,
+            iconStyle,
             footer,
         });
         const tmpDir = process.env.RUNNER_TEMP || external_node_os_namespaceObject.tmpdir();
@@ -40062,6 +40073,12 @@ async function run() {
     catch (err) {
         setFailed(err.message);
     }
+}
+function defaultIconBase(style, sonarHostUrl) {
+    if (style === "cloud") {
+        return "https://sonarsource.github.io/sonarcloud-github-static-resources/v2";
+    }
+    return `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
 }
 void run();
 

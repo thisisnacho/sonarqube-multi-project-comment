@@ -20,8 +20,11 @@ async function run(): Promise<void> {
     const reportTaskFiles = core.getInput("report-task-files");
     const commentHeader = core.getInput("comment-header") || "SonarQube PR analysis";
     const failOnGate = core.getBooleanInput("fail-on-quality-gate");
-    const iconBaseUrl =
-      core.getInput("icon-base-url") || `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
+    const iconStyle = (core.getInput("icon-style") || "cloud") as "cloud" | "community-plugin";
+    if (iconStyle !== "cloud" && iconStyle !== "community-plugin") {
+      throw new Error(`icon-style must be "cloud" or "community-plugin", got: ${iconStyle}`);
+    }
+    const iconBaseUrl = core.getInput("icon-base-url") || defaultIconBase(iconStyle, sonarHostUrl);
     const footer = core.getInput("footer") || "Aggregated from per-project SonarQube scans.";
 
     const pullRequestInput = core.getInput("pr-number");
@@ -61,6 +64,7 @@ async function run(): Promise<void> {
     const body = renderComment(results, {
       header: commentHeader,
       iconBaseUrl,
+      iconStyle,
       footer,
     });
 
@@ -75,6 +79,13 @@ async function run(): Promise<void> {
   } catch (err) {
     core.setFailed((err as Error).message);
   }
+}
+
+function defaultIconBase(style: "cloud" | "community-plugin", sonarHostUrl: string): string {
+  if (style === "cloud") {
+    return "https://sonarsource.github.io/sonarcloud-github-static-resources/v2";
+  }
+  return `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
 }
 
 void run();

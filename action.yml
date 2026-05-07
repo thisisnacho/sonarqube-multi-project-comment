@@ -32,10 +32,20 @@ inputs:
     description: Heading rendered at the top of the aggregated comment.
     required: false
     default: SonarQube PR analysis
+  icon-style:
+    description: |
+      Where status icons live. `cloud` (default) uses the SonarSource-hosted
+      icons on github.io and matches SonarCloud's PR decoration. Set to
+      `community-plugin` for self-hosted SonarQube with the community branch
+      plugin installed.
+    required: false
+    default: cloud
   icon-base-url:
     description: |
-      Base URL for status icons. Defaults to the SonarQube community branch
-      plugin path (`<host>/static/communityBranchPlugin`).
+      Override the default icon base URL. Defaults to
+      `https://sonarsource.github.io/sonarcloud-github-static-resources/v2`
+      for `icon-style: cloud` and `<host>/static/communityBranchPlugin` for
+      `community-plugin`.
     required: false
   footer:
     description: Optional text rendered below the table (wrapped in <sub>).
@@ -96,6 +106,7 @@ runs:
         report-task-files: ${{ inputs.report-task-files }}
         pr-number: ${{ inputs.pr-number }}
         comment-header: ${{ inputs.comment-header }}
+        icon-style: ${{ inputs.icon-style }}
         icon-base-url: ${{ inputs.icon-base-url }}
         footer: ${{ inputs.footer }}
         fail-on-quality-gate: ${{ inputs.fail-on-quality-gate }}
