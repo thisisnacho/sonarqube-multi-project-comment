@@ -38,7 +38,9 @@ export class CommentRenderer {
     return fill(COMMENT_TEMPLATE, {
       header: this.opts.header,
       rows: results.map((r) => this.renderRow(r)).join("\n"),
-      footer: this.opts.footer ? fill(FOOTER_TEMPLATE, { text: this.opts.footer }) : "",
+      footer: this.opts.footer
+        ? fill(FOOTER_TEMPLATE, { text: this.opts.footer })
+        : "",
     });
   }
 
@@ -48,7 +50,10 @@ export class CommentRenderer {
     return fill(ROW_TEMPLATE, this.buildCells(r, projectCell));
   }
 
-  private buildCells(r: ProjectResult, projectCell: string): Record<string, string> {
+  private buildCells(
+    r: ProjectResult,
+    projectCell: string,
+  ): Record<string, string> {
     const { iconBaseUrl, iconStyle } = this.opts;
     const host = baseHost(r.dashboardUrl);
     const pr = prFrom(r.dashboardUrl);
@@ -77,7 +82,12 @@ export class CommentRenderer {
 
     return {
       project: projectCell,
-      gate: linkedIcon("Gate", gateIcon, qualityGateText(r.qualityGate), r.dashboardUrl),
+      gate: linkedIcon(
+        "Gate",
+        gateIcon,
+        qualityGateText(r.qualityGate),
+        r.dashboardUrl,
+      ),
       issues: `${newLink}<br>${acceptedLink}`,
       security: linkedIcon(
         "Security",
@@ -103,11 +113,16 @@ export class CommentRenderer {
   }
 }
 
-export function renderComment(results: ProjectResult[], opts: RenderOptions): string {
+export function renderComment(
+  results: ProjectResult[],
+  opts: RenderOptions,
+): string {
   return new CommentRenderer(opts).render(results);
 }
 
-export function overallQualityGate(results: ProjectResult[]): QualityGateStatus {
+export function overallQualityGate(
+  results: ProjectResult[],
+): QualityGateStatus {
   if (results.length === 0) return "NONE";
   let saw: QualityGateStatus = "OK";
   for (const r of results) {
@@ -143,7 +158,11 @@ function stackedPercent(
   return `${newRow}<br>${postRow}`;
 }
 
-function gateBadgeUrl(iconBaseUrl: string, style: IconStyle, state: IconState): string {
+function gateBadgeUrl(
+  iconBaseUrl: string,
+  style: IconStyle,
+  state: IconState,
+): string {
   return style === "cloud"
     ? `${iconBaseUrl}/checks/QualityGateBadge/qg-${state}-20px.png`
     : `${iconBaseUrl}/checks/QualityGateBadge/${state}-16px.png`;
@@ -180,7 +199,10 @@ function pctState(value: number | null): IconState {
   return value === null ? "no-data" : "passed";
 }
 
-function pctLabel(value: number | null, qualifier: "new" | "post-merge"): string {
+function pctLabel(
+  value: number | null,
+  qualifier: "new" | "post-merge",
+): string {
   if (value === null) return `No${NB}data`;
   if (qualifier === "post-merge") return `~${value.toFixed(1)}%${NB}merged`;
   return `${value.toFixed(1)}%${NB}new`;
@@ -190,7 +212,12 @@ function formatCount(count: number | null): string {
   return count === null ? "?" : String(count);
 }
 
-function linkedIcon(alt: string, iconUrl: string, text: string, href: string): string {
+function linkedIcon(
+  alt: string,
+  iconUrl: string,
+  text: string,
+  href: string,
+): string {
   return `<a href="${href}"><img src="${iconUrl}" alt="${alt}">${NB}${text}</a>`;
 }
 

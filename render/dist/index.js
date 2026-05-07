@@ -28612,7 +28612,9 @@ class CommentRenderer {
         return fill(COMMENT_TEMPLATE, {
             header: this.opts.header,
             rows: results.map((r) => this.renderRow(r)).join("\n"),
-            footer: this.opts.footer ? fill(FOOTER_TEMPLATE, { text: this.opts.footer }) : "",
+            footer: this.opts.footer
+                ? fill(FOOTER_TEMPLATE, { text: this.opts.footer })
+                : "",
         });
     }
     renderRow(r) {
@@ -28776,10 +28778,12 @@ async function run() {
         if (iconStyle !== "cloud" && iconStyle !== "community-plugin") {
             throw new Error(`icon-style must be "cloud" or "community-plugin", got: ${iconStyle}`);
         }
-        const iconBaseUrl = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("icon-base-url") || defaultIconBase(iconStyle, sonarHostUrl);
+        const iconBaseUrl = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("icon-base-url") ||
+            defaultIconBase(iconStyle, sonarHostUrl);
         const footer = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("footer") || "Aggregated from per-project SonarQube scans.";
         const pullRequestInput = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("pr-number");
-        const pullRequest = pullRequestInput || `${_actions_github__WEBPACK_IMPORTED_MODULE_4__/* .context */ ._.payload.pull_request?.number ?? ""}`;
+        const pullRequest = pullRequestInput ||
+            `${_actions_github__WEBPACK_IMPORTED_MODULE_4__/* .context */ ._.payload.pull_request?.number ?? ""}`;
         if (!pullRequest) {
             throw new Error("Could not determine pull request number — set the `pr-number` input.");
         }
@@ -28883,7 +28887,9 @@ class SonarClient {
     async get(path, params) {
         const url = this.url(path, params);
         try {
-            const res = await this.fetch(url, { headers: { Authorization: this.authHeader } });
+            const res = await this.fetch(url, {
+                headers: { Authorization: this.authHeader },
+            });
             if (!res.ok) {
                 _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .debug */ .Yz(`GET ${url} → ${res.status}`);
                 return undefined;
@@ -28922,7 +28928,11 @@ class SonarClient {
             return emptyResult(label, projectKey, dashboardUrl, status, false);
         }
         const [newIssues, acceptedIssues, measures] = await Promise.all([
-            this.countIssues(projectKey, { pullRequest, inNewCodePeriod: "true", resolved: "false" }),
+            this.countIssues(projectKey, {
+                pullRequest,
+                inNewCodePeriod: "true",
+                resolved: "false",
+            }),
             this.countIssues(projectKey, { pullRequest, issueStatuses: "ACCEPTED" }),
             this.fetchMeasures(projectKey, pullRequest),
         ]);

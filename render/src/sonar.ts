@@ -1,6 +1,12 @@
 import * as core from "@actions/core";
 import type { Fetch, Sleep } from "./deps.js";
-import type { IssueCounts, ProjectResult, QualityGateStatus, ReportTask, SonarConfig } from "./types.js";
+import type {
+  IssueCounts,
+  ProjectResult,
+  QualityGateStatus,
+  ReportTask,
+  SonarConfig,
+} from "./types.js";
 
 const MEASURE_METRICS = [
   "new_coverage",
@@ -20,7 +26,10 @@ export class SonarClient {
   private readonly fetch: Fetch;
   private readonly sleep: Sleep;
 
-  constructor(private readonly config: SonarConfig, deps: SonarClientDeps) {
+  constructor(
+    private readonly config: SonarConfig,
+    deps: SonarClientDeps,
+  ) {
     const encoded = Buffer.from(`${config.token}:`).toString("base64");
     this.authHeader = `Basic ${encoded}`;
     this.fetch = deps.fetch;
@@ -31,7 +40,10 @@ export class SonarClient {
     return stripTrailingSlash(this.config.hostUrl);
   }
 
-  private url(path: string, params: Record<string, string | undefined>): string {
+  private url(
+    path: string,
+    params: Record<string, string | undefined>,
+  ): string {
     const search = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== "") search.set(k, v);
@@ -41,10 +53,15 @@ export class SonarClient {
     return `${this.hostUrl}${path}${suffix}`;
   }
 
-  private async get<T>(path: string, params: Record<string, string | undefined>): Promise<T | undefined> {
+  private async get<T>(
+    path: string,
+    params: Record<string, string | undefined>,
+  ): Promise<T | undefined> {
     const url = this.url(path, params);
     try {
-      const res = await this.fetch(url, { headers: { Authorization: this.authHeader } });
+      const res = await this.fetch(url, {
+        headers: { Authorization: this.authHeader },
+      });
       if (!res.ok) {
         core.debug(`GET ${url} → ${res.status}`);
         return undefined;
@@ -60,25 +77,39 @@ export class SonarClient {
     const deadline = Date.now() + timeoutMs;
     let delay = 2_000;
     while (Date.now() < deadline) {
-      const data = await this.get<{ task: { status: string } }>("/api/ce/task", { id: taskId });
+      const data = await this.get<{ task: { status: string } }>(
+        "/api/ce/task",
+        { id: taskId },
+      );
       const status = data?.task?.status;
       if (status === "SUCCESS") return;
       if (status === "FAILED" || status === "CANCELED") {
-        throw new Error(`Compute Engine task ${taskId} ended with status ${status}`);
+        throw new Error(
+          `Compute Engine task ${taskId} ended with status ${status}`,
+        );
       }
       await this.sleep(delay);
       delay = Math.min(delay * 1.5, 10_000);
     }
-    throw new Error(`Compute Engine task ${taskId} did not finish within ${timeoutMs}ms`);
+    throw new Error(
+      `Compute Engine task ${taskId} did not finish within ${timeoutMs}ms`,
+    );
   }
 
-  async fetchProject(label: string, projectKey: string, pullRequest: string): Promise<ProjectResult> {
+  async fetchProject(
+    label: string,
+    projectKey: string,
+    pullRequest: string,
+  ): Promise<ProjectResult> {
     const dashboardUrl = `${this.hostUrl}/dashboard?id=${encodeURIComponent(projectKey)}&pullRequest=${encodeURIComponent(pullRequest)}`;
 
-    const qg = await this.get<QualityGateResponse>("/api/qualitygates/project_status", {
-      projectKey,
-      pullRequest,
-    });
+    const qg = await this.get<QualityGateResponse>(
+      "/api/qualitygates/project_status",
+      {
+        projectKey,
+        pullRequest,
+      },
+    );
     const status = (qg?.projectStatus.status as QualityGateStatus) ?? "NONE";
 
     if (status === "NONE") {
@@ -86,7 +117,11 @@ export class SonarClient {
     }
 
     const [newIssues, acceptedIssues, measures] = await Promise.all([
-      this.countIssues(projectKey, { pullRequest, inNewCodePeriod: "true", resolved: "false" }),
+      this.countIssues(projectKey, {
+        pullRequest,
+        inNewCodePeriod: "true",
+        resolved: "false",
+      }),
       this.countIssues(projectKey, { pullRequest, issueStatuses: "ACCEPTED" }),
       this.fetchMeasures(projectKey, pullRequest),
     ]);
@@ -188,7 +223,9 @@ export function parseReportTask(content: string): ReportTask {
     map[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
   }
   if (!map.projectKey || !map.ceTaskId) {
-    throw new Error("report-task.txt missing required keys (projectKey, ceTaskId)");
+    throw new Error(
+      "report-task.txt missing required keys (projectKey, ceTaskId)",
+    );
   }
   return {
     projectKey: map.projectKey,

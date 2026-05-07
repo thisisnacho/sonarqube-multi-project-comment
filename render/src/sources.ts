@@ -27,7 +27,9 @@ export async function loadFromProjects(
   projects: ProjectInput[],
   pullRequest: string,
 ): Promise<ProjectResult[]> {
-  return Promise.all(projects.map((p) => client.fetchProject(p.label, p.key, pullRequest)));
+  return Promise.all(
+    projects.map((p) => client.fetchProject(p.label, p.key, pullRequest)),
+  );
 }
 
 export interface ReportTaskLoaderDeps {
@@ -41,7 +43,11 @@ export class ReportTaskLoader {
     private readonly deps: ReportTaskLoaderDeps,
   ) {}
 
-  async load(patterns: string, pullRequest: string, waitForTask: boolean): Promise<ProjectResult[]> {
+  async load(
+    patterns: string,
+    pullRequest: string,
+    waitForTask: boolean,
+  ): Promise<ProjectResult[]> {
     if (!patterns.trim()) return [];
     const files = await this.deps.glob(patterns);
     if (files.length === 0) {
@@ -73,7 +79,11 @@ export class ReportTaskLoader {
             );
           }
         }
-        return this.client.fetchProject(task.projectKey, task.projectKey, pullRequest);
+        return this.client.fetchProject(
+          task.projectKey,
+          task.projectKey,
+          pullRequest,
+        );
       }),
     );
   }

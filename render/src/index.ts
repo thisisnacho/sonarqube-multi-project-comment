@@ -6,11 +6,22 @@ import * as github from "@actions/github";
 import * as glob from "@actions/glob";
 import { overallQualityGate, renderComment } from "./comment.js";
 import type { Globber } from "./deps.js";
-import { SonarClient, type SonarClientDeps, stripTrailingSlash } from "./sonar.js";
-import { loadFromProjects, parseProjectsInput, ReportTaskLoader } from "./sources.js";
+import {
+  SonarClient,
+  type SonarClientDeps,
+  stripTrailingSlash,
+} from "./sonar.js";
+import {
+  loadFromProjects,
+  parseProjectsInput,
+  ReportTaskLoader,
+} from "./sources.js";
 import type { ProjectResult, SonarConfig } from "./types.js";
 
-const realDeps: SonarClientDeps & { readFile: (p: string) => Promise<string>; glob: Globber } = {
+const realDeps: SonarClientDeps & {
+  readFile: (p: string) => Promise<string>;
+  glob: Globber;
+} = {
   fetch: globalThis.fetch.bind(globalThis),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   readFile: (p) => fs.readFile(p, "utf8"),
@@ -26,23 +37,37 @@ async function run(): Promise<void> {
     const sonarToken = core.getInput("sonar-token");
     const projectsRaw = core.getInput("projects");
     const reportTaskFiles = core.getInput("report-task-files");
-    const commentHeader = core.getInput("comment-header") || "SonarQube PR analysis";
+    const commentHeader =
+      core.getInput("comment-header") || "SonarQube PR analysis";
     const failOnGate = core.getBooleanInput("fail-on-quality-gate");
-    const iconStyle = (core.getInput("icon-style") || "cloud") as "cloud" | "community-plugin";
+    const iconStyle = (core.getInput("icon-style") || "cloud") as
+      | "cloud"
+      | "community-plugin";
     if (iconStyle !== "cloud" && iconStyle !== "community-plugin") {
-      throw new Error(`icon-style must be "cloud" or "community-plugin", got: ${iconStyle}`);
+      throw new Error(
+        `icon-style must be "cloud" or "community-plugin", got: ${iconStyle}`,
+      );
     }
-    const iconBaseUrl = core.getInput("icon-base-url") || defaultIconBase(iconStyle, sonarHostUrl);
-    const footer = core.getInput("footer") || "Aggregated from per-project SonarQube scans.";
+    const iconBaseUrl =
+      core.getInput("icon-base-url") ||
+      defaultIconBase(iconStyle, sonarHostUrl);
+    const footer =
+      core.getInput("footer") || "Aggregated from per-project SonarQube scans.";
 
     const pullRequestInput = core.getInput("pr-number");
-    const pullRequest = pullRequestInput || `${github.context.payload.pull_request?.number ?? ""}`;
+    const pullRequest =
+      pullRequestInput ||
+      `${github.context.payload.pull_request?.number ?? ""}`;
     if (!pullRequest) {
-      throw new Error("Could not determine pull request number — set the `pr-number` input.");
+      throw new Error(
+        "Could not determine pull request number — set the `pr-number` input.",
+      );
     }
 
     if (!projectsRaw && !reportTaskFiles) {
-      throw new Error("Provide at least one of `projects` or `report-task-files`.");
+      throw new Error(
+        "Provide at least one of `projects` or `report-task-files`.",
+      );
     }
     if (!sonarHostUrl || !sonarToken) {
       throw new Error("`sonar-host-url` and `sonar-token` are required.");
@@ -58,7 +83,9 @@ async function run(): Promise<void> {
       results.push(...(await loadFromProjects(client, projects, pullRequest)));
     }
     if (reportTaskFiles) {
-      results.push(...(await reportTaskLoader.load(reportTaskFiles, pullRequest, true)));
+      results.push(
+        ...(await reportTaskLoader.load(reportTaskFiles, pullRequest, true)),
+      );
     }
 
     const overall = overallQualityGate(results);
@@ -90,7 +117,10 @@ async function run(): Promise<void> {
   }
 }
 
-function defaultIconBase(style: "cloud" | "community-plugin", sonarHostUrl: string): string {
+function defaultIconBase(
+  style: "cloud" | "community-plugin",
+  sonarHostUrl: string,
+): string {
   if (style === "cloud") {
     return "https://sonarsource.github.io/sonarcloud-github-static-resources/v2";
   }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { overallQualityGate, renderComment, type RenderOptions } from "./comment.js";
+import {
+  overallQualityGate,
+  renderComment,
+  type RenderOptions,
+} from "./comment.js";
 import type { ProjectResult } from "./types.js";
 
 const cloudOpts: RenderOptions = {
@@ -20,7 +24,8 @@ function passingResult(overrides: Partial<ProjectResult> = {}): ProjectResult {
     coverage: 80,
     newDuplications: 0,
     duplications: 0,
-    dashboardUrl: "https://sonar.example.com/dashboard?id=demo-alpha&pullRequest=42",
+    dashboardUrl:
+      "https://sonar.example.com/dashboard?id=demo-alpha&pullRequest=42",
     ...overrides,
   };
 }
@@ -29,7 +34,9 @@ describe("renderComment", () => {
   it("renders the header and table columns", () => {
     const out = renderComment([passingResult()], cloudOpts);
     expect(out).toContain("## SonarQube PR analysis");
-    expect(out).toContain("| Project | Gate | Issues | Sec. | Coverage | Duplications |");
+    expect(out).toContain(
+      "| Project | Gate | Issues | Sec. | Coverage | Duplications |",
+    );
   });
 
   it("renders an unanalysed project as 'Not analyzed'", () => {
@@ -44,7 +51,10 @@ describe("renderComment", () => {
   });
 
   it("uses {state}-16px badge for community-plugin icon style", () => {
-    const out = renderComment([passingResult()], { ...cloudOpts, iconStyle: "community-plugin" });
+    const out = renderComment([passingResult()], {
+      ...cloudOpts,
+      iconStyle: "community-plugin",
+    });
     expect(out).toContain("checks/QualityGateBadge/passed-16px.png");
     expect(out).not.toContain("qg-passed-");
   });
@@ -66,7 +76,10 @@ describe("renderComment", () => {
   });
 
   it("renders the footer when provided", () => {
-    const out = renderComment([passingResult()], { ...cloudOpts, footer: "powered by tests" });
+    const out = renderComment([passingResult()], {
+      ...cloudOpts,
+      footer: "powered by tests",
+    });
     expect(out).toContain("<sub>powered by tests</sub>");
   });
 
@@ -94,16 +107,23 @@ describe("overallQualityGate", () => {
   });
 
   it("returns OK when every project passes", () => {
-    expect(overallQualityGate([passingResult(), passingResult({ label: "b" })])).toBe("OK");
+    expect(
+      overallQualityGate([passingResult(), passingResult({ label: "b" })]),
+    ).toBe("OK");
   });
 
   it("returns ERROR if any project fails", () => {
     expect(
-      overallQualityGate([passingResult(), passingResult({ qualityGate: "ERROR" })]),
+      overallQualityGate([
+        passingResult(),
+        passingResult({ qualityGate: "ERROR" }),
+      ]),
     ).toBe("ERROR");
   });
 
   it("preserves a non-OK status when no ERROR is present", () => {
-    expect(overallQualityGate([passingResult({ qualityGate: "WARN" })])).toBe("WARN");
+    expect(overallQualityGate([passingResult({ qualityGate: "WARN" })])).toBe(
+      "WARN",
+    );
   });
 });

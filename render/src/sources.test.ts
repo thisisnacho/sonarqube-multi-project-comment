@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadFromProjects, parseProjectsInput, ReportTaskLoader } from "./sources.js";
+import {
+  loadFromProjects,
+  parseProjectsInput,
+  ReportTaskLoader,
+} from "./sources.js";
 import type { SonarClient } from "./sonar.js";
 import type { ProjectResult } from "./types.js";
 
@@ -46,12 +50,14 @@ describe("parseProjectsInput", () => {
 
 function makeClient(): SonarClient {
   return {
-    fetchProject: vi
-      .fn()
-      .mockImplementation(
-        async (label: string, key: string) =>
-          ({ label, projectKey: key, qualityGate: "OK" }) as unknown as ProjectResult,
-      ),
+    fetchProject: vi.fn().mockImplementation(
+      async (label: string, key: string) =>
+        ({
+          label,
+          projectKey: key,
+          qualityGate: "OK",
+        }) as unknown as ProjectResult,
+    ),
     waitForCeTask: vi.fn().mockResolvedValue(undefined),
   } as unknown as SonarClient;
 }
@@ -82,7 +88,12 @@ describe("ReportTaskLoader", () => {
         const id = p.includes("/a/") ? "task-a" : "task-b";
         return `projectKey=${key}\nceTaskId=${id}\n`;
       }),
-      glob: vi.fn().mockResolvedValue(["/tmp/a/report-task.txt", "/tmp/b/report-task.txt"]),
+      glob: vi
+        .fn()
+        .mockResolvedValue([
+          "/tmp/a/report-task.txt",
+          "/tmp/b/report-task.txt",
+        ]),
     });
 
     const results = await loader.load("**/report-task.txt", "42", true);
@@ -101,9 +112,16 @@ describe("ReportTaskLoader", () => {
       readFile: vi
         .fn()
         .mockImplementation(async (p) =>
-          p.includes("/bad/") ? "no required keys" : "projectKey=p\nceTaskId=t\n",
+          p.includes("/bad/")
+            ? "no required keys"
+            : "projectKey=p\nceTaskId=t\n",
         ),
-      glob: vi.fn().mockResolvedValue(["/tmp/bad/report-task.txt", "/tmp/good/report-task.txt"]),
+      glob: vi
+        .fn()
+        .mockResolvedValue([
+          "/tmp/bad/report-task.txt",
+          "/tmp/good/report-task.txt",
+        ]),
     });
 
     const results = await loader.load("**/report-task.txt", "1", true);
@@ -125,7 +143,9 @@ describe("ReportTaskLoader", () => {
 
   it("continues even if CE wait throws", async () => {
     const client = makeClient();
-    (client.waitForCeTask as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("timeout"));
+    (client.waitForCeTask as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("timeout"),
+    );
     const loader = new ReportTaskLoader(client, {
       readFile: vi.fn().mockResolvedValue("projectKey=p\nceTaskId=t\n"),
       glob: vi.fn().mockResolvedValue(["/tmp/a/report-task.txt"]),
@@ -140,7 +160,11 @@ describe("ReportTaskLoader", () => {
 describe("loadFromProjects", () => {
   it("calls fetchProject for each project with the same PR number", async () => {
     const fetchProject = vi.fn().mockImplementation(async (label, key) => {
-      return { label, projectKey: key, qualityGate: "OK" } as unknown as ProjectResult;
+      return {
+        label,
+        projectKey: key,
+        qualityGate: "OK",
+      } as unknown as ProjectResult;
     });
     const client = { fetchProject } as unknown as SonarClient;
 

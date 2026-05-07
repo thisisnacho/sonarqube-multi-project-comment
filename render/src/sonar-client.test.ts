@@ -36,7 +36,9 @@ describe("SonarClient", () => {
 
     const [, init] = fetchMock.mock.calls[0]!;
     const expected = `Basic ${Buffer.from("tok:").toString("base64")}`;
-    expect((init?.headers as Record<string, string>).Authorization).toBe(expected);
+    expect((init?.headers as Record<string, string>).Authorization).toBe(
+      expected,
+    );
   });
 
   it("returns NONE / not-analysed when quality gate is missing", async () => {
@@ -101,7 +103,9 @@ describe("SonarClient", () => {
       if (u.includes("/api/issues/search")) return ok({ total: 0 });
       return ok({
         component: {
-          measures: [{ metric: "new_coverage", value: "10", period: { value: "99.9" } }],
+          measures: [
+            { metric: "new_coverage", value: "10", period: { value: "99.9" } },
+          ],
         },
       });
     });

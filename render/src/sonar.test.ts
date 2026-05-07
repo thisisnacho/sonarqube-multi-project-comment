@@ -3,15 +3,21 @@ import { parseReportTask, stripTrailingSlash } from "./sonar.js";
 
 describe("stripTrailingSlash", () => {
   it("removes a single trailing slash", () => {
-    expect(stripTrailingSlash("https://example.com/")).toBe("https://example.com");
+    expect(stripTrailingSlash("https://example.com/")).toBe(
+      "https://example.com",
+    );
   });
 
   it("removes multiple trailing slashes", () => {
-    expect(stripTrailingSlash("https://example.com///")).toBe("https://example.com");
+    expect(stripTrailingSlash("https://example.com///")).toBe(
+      "https://example.com",
+    );
   });
 
   it("leaves a string without trailing slashes alone", () => {
-    expect(stripTrailingSlash("https://example.com/path")).toBe("https://example.com/path");
+    expect(stripTrailingSlash("https://example.com/path")).toBe(
+      "https://example.com/path",
+    );
   });
 
   it("handles the empty string", () => {
@@ -59,6 +65,9 @@ ceTaskUrl=https://sonar.example.com/api/ce/task?id=task-abc-123
 
   it("handles CRLF line endings", () => {
     const crlf = "projectKey=p\r\nceTaskId=t\r\n";
-    expect(parseReportTask(crlf)).toMatchObject({ projectKey: "p", ceTaskId: "t" });
+    expect(parseReportTask(crlf)).toMatchObject({
+      projectKey: "p",
+      ceTaskId: "t",
+    });
   });
 });
