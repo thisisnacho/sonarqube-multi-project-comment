@@ -1,6 +1,5 @@
-import * as fs from "node:fs/promises";
 import * as core from "@actions/core";
-import * as glob from "@actions/glob";
+import type { Globber, ReadFile } from "./deps.js";
 import { parseReportTask, SonarClient } from "./sonar.js";
 import type { ProjectInput, ProjectResult } from "./types.js";
 
@@ -31,45 +30,51 @@ export async function loadFromProjects(
   return Promise.all(projects.map((p) => client.fetchProject(p.label, p.key, pullRequest)));
 }
 
-export async function loadFromReportTaskFiles(
-  client: SonarClient,
-  patterns: string,
-  pullRequest: string,
-  waitForTask: boolean,
-): Promise<ProjectResult[]> {
-  if (!patterns.trim()) return [];
-  const globber = await glob.create(patterns, { matchDirectories: false });
-  const files = await globber.glob();
-  if (files.length === 0) {
-    core.warning(`No report-task.txt files matched: ${patterns}`);
-    return [];
-  }
+export interface ReportTaskLoaderDeps {
+  readFile: ReadFile;
+  glob: Globber;
+}
 
-  const tasks = await Promise.all(
-    files.map(async (file) => {
-      const content = await fs.readFile(file, "utf8");
-      try {
-        return parseReportTask(content);
-      } catch (err) {
-        core.warning(`Skipping ${file}: ${(err as Error).message}`);
-        return undefined;
-      }
-    }),
-  );
+export class ReportTaskLoader {
+  constructor(
+    private readonly client: SonarClient,
+    private readonly deps: ReportTaskLoaderDeps,
+  ) {}
 
-  const valid = tasks.filter((t): t is NonNullable<typeof t> => Boolean(t));
-  return Promise.all(
-    valid.map(async (task) => {
-      if (waitForTask) {
+  async load(patterns: string, pullRequest: string, waitForTask: boolean): Promise<ProjectResult[]> {
+    if (!patterns.trim()) return [];
+    const files = await this.deps.glob(patterns);
+    if (files.length === 0) {
+      core.warning(`No report-task.txt files matched: ${patterns}`);
+      return [];
+    }
+
+    const tasks = await Promise.all(
+      files.map(async (file) => {
+        const content = await this.deps.readFile(file);
         try {
-          await client.waitForCeTask(task.ceTaskId);
+          return parseReportTask(content);
         } catch (err) {
-          core.warning(
-            `Wait for SonarQube analysis failed for ${task.projectKey}: ${(err as Error).message}`,
-          );
+          core.warning(`Skipping ${file}: ${(err as Error).message}`);
+          return undefined;
         }
-      }
-      return client.fetchProject(task.projectKey, task.projectKey, pullRequest);
-    }),
-  );
+      }),
+    );
+
+    const valid = tasks.filter((t): t is NonNullable<typeof t> => Boolean(t));
+    return Promise.all(
+      valid.map(async (task) => {
+        if (waitForTask) {
+          try {
+            await this.client.waitForCeTask(task.ceTaskId);
+          } catch (err) {
+            core.warning(
+              `Wait for SonarQube analysis failed for ${task.projectKey}: ${(err as Error).message}`,
+            );
+          }
+        }
+        return this.client.fetchProject(task.projectKey, task.projectKey, pullRequest);
+      }),
+    );
+  }
 }

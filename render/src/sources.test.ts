@@ -1,17 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadFromProjects, loadFromReportTaskFiles, parseProjectsInput } from "./sources.js";
+import { describe, expect, it, vi } from "vitest";
+import { loadFromProjects, parseProjectsInput, ReportTaskLoader } from "./sources.js";
 import type { SonarClient } from "./sonar.js";
 import type { ProjectResult } from "./types.js";
-
-vi.mock("@actions/glob", () => ({
-  create: vi.fn(),
-}));
-vi.mock("node:fs/promises", () => ({
-  readFile: vi.fn(),
-}));
-
-const glob = await import("@actions/glob");
-const fs = await import("node:fs/promises");
 
 describe("parseProjectsInput", () => {
   it("returns empty array for blank input", () => {
@@ -54,51 +44,48 @@ describe("parseProjectsInput", () => {
   });
 });
 
-describe("loadFromReportTaskFiles", () => {
-  beforeEach(() => {
-    vi.mocked(glob.create).mockReset();
-    vi.mocked(fs.readFile).mockReset();
-  });
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
+function makeClient(): SonarClient {
+  return {
+    fetchProject: vi
+      .fn()
+      .mockImplementation(
+        async (label: string, key: string) =>
+          ({ label, projectKey: key, qualityGate: "OK" }) as unknown as ProjectResult,
+      ),
+    waitForCeTask: vi.fn().mockResolvedValue(undefined),
+  } as unknown as SonarClient;
+}
 
-  function makeClient(): SonarClient {
-    return {
-      fetchProject: vi
-        .fn()
-        .mockImplementation(
-          async (label: string, key: string) =>
-            ({ label, projectKey: key, qualityGate: "OK" }) as unknown as ProjectResult,
-        ),
-      waitForCeTask: vi.fn().mockResolvedValue(undefined),
-    } as unknown as SonarClient;
-  }
-
+describe("ReportTaskLoader", () => {
   it("returns empty array for blank pattern", async () => {
-    const client = makeClient();
-    expect(await loadFromReportTaskFiles(client, "   ", "1", true)).toEqual([]);
-    expect(glob.create).not.toHaveBeenCalled();
+    const glob = vi.fn();
+    const readFile = vi.fn();
+    const loader = new ReportTaskLoader(makeClient(), { readFile, glob });
+
+    expect(await loader.load("   ", "1", true)).toEqual([]);
+    expect(glob).not.toHaveBeenCalled();
   });
 
   it("warns and returns empty when no files match", async () => {
-    vi.mocked(glob.create).mockResolvedValue({ glob: async () => [] } as never);
-    const client = makeClient();
-    expect(await loadFromReportTaskFiles(client, "missing/**", "1", true)).toEqual([]);
+    const loader = new ReportTaskLoader(makeClient(), {
+      readFile: vi.fn(),
+      glob: vi.fn().mockResolvedValue([]),
+    });
+    expect(await loader.load("missing/**", "1", true)).toEqual([]);
   });
 
   it("reads each report-task, awaits the CE task, and fetches results", async () => {
-    vi.mocked(glob.create).mockResolvedValue({
-      glob: async () => ["/tmp/a/report-task.txt", "/tmp/b/report-task.txt"],
-    } as never);
-    vi.mocked(fs.readFile).mockImplementation(async (path) => {
-      const key = String(path).includes("/a/") ? "p-a" : "p-b";
-      const id = String(path).includes("/a/") ? "task-a" : "task-b";
-      return `projectKey=${key}\nceTaskId=${id}\n`;
+    const client = makeClient();
+    const loader = new ReportTaskLoader(client, {
+      readFile: vi.fn().mockImplementation(async (p) => {
+        const key = p.includes("/a/") ? "p-a" : "p-b";
+        const id = p.includes("/a/") ? "task-a" : "task-b";
+        return `projectKey=${key}\nceTaskId=${id}\n`;
+      }),
+      glob: vi.fn().mockResolvedValue(["/tmp/a/report-task.txt", "/tmp/b/report-task.txt"]),
     });
 
-    const client = makeClient();
-    const results = await loadFromReportTaskFiles(client, "**/report-task.txt", "42", true);
+    const results = await loader.load("**/report-task.txt", "42", true);
 
     expect(results).toHaveLength(2);
     expect(client.waitForCeTask).toHaveBeenCalledTimes(2);
@@ -109,40 +96,42 @@ describe("loadFromReportTaskFiles", () => {
   });
 
   it("skips report-task files that fail to parse", async () => {
-    vi.mocked(glob.create).mockResolvedValue({
-      glob: async () => ["/tmp/bad/report-task.txt", "/tmp/good/report-task.txt"],
-    } as never);
-    vi.mocked(fs.readFile).mockImplementation(async (path) =>
-      String(path).includes("/bad/") ? "no required keys" : "projectKey=p\nceTaskId=t\n",
-    );
-
     const client = makeClient();
-    const results = await loadFromReportTaskFiles(client, "**/report-task.txt", "1", true);
+    const loader = new ReportTaskLoader(client, {
+      readFile: vi
+        .fn()
+        .mockImplementation(async (p) =>
+          p.includes("/bad/") ? "no required keys" : "projectKey=p\nceTaskId=t\n",
+        ),
+      glob: vi.fn().mockResolvedValue(["/tmp/bad/report-task.txt", "/tmp/good/report-task.txt"]),
+    });
+
+    const results = await loader.load("**/report-task.txt", "1", true);
     expect(results).toHaveLength(1);
     expect(client.fetchProject).toHaveBeenCalledTimes(1);
   });
 
   it("does not wait for CE task when waitForTask is false", async () => {
-    vi.mocked(glob.create).mockResolvedValue({
-      glob: async () => ["/tmp/a/report-task.txt"],
-    } as never);
-    vi.mocked(fs.readFile).mockResolvedValue("projectKey=p\nceTaskId=t\n");
-
     const client = makeClient();
-    await loadFromReportTaskFiles(client, "**/report-task.txt", "1", false);
+    const loader = new ReportTaskLoader(client, {
+      readFile: vi.fn().mockResolvedValue("projectKey=p\nceTaskId=t\n"),
+      glob: vi.fn().mockResolvedValue(["/tmp/a/report-task.txt"]),
+    });
+
+    await loader.load("**/report-task.txt", "1", false);
     expect(client.waitForCeTask).not.toHaveBeenCalled();
     expect(client.fetchProject).toHaveBeenCalledOnce();
   });
 
   it("continues even if CE wait throws", async () => {
-    vi.mocked(glob.create).mockResolvedValue({
-      glob: async () => ["/tmp/a/report-task.txt"],
-    } as never);
-    vi.mocked(fs.readFile).mockResolvedValue("projectKey=p\nceTaskId=t\n");
     const client = makeClient();
     (client.waitForCeTask as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("timeout"));
+    const loader = new ReportTaskLoader(client, {
+      readFile: vi.fn().mockResolvedValue("projectKey=p\nceTaskId=t\n"),
+      glob: vi.fn().mockResolvedValue(["/tmp/a/report-task.txt"]),
+    });
 
-    const results = await loadFromReportTaskFiles(client, "**/report-task.txt", "1", true);
+    const results = await loader.load("**/report-task.txt", "1", true);
     expect(results).toHaveLength(1);
     expect(client.fetchProject).toHaveBeenCalledOnce();
   });
@@ -150,11 +139,9 @@ describe("loadFromReportTaskFiles", () => {
 
 describe("loadFromProjects", () => {
   it("calls fetchProject for each project with the same PR number", async () => {
-    const fetchProject = vi
-      .fn<SonarClient["fetchProject"]>()
-      .mockImplementation(async (label, key) => {
-        return { label, projectKey: key, qualityGate: "OK" } as unknown as ProjectResult;
-      });
+    const fetchProject = vi.fn().mockImplementation(async (label, key) => {
+      return { label, projectKey: key, qualityGate: "OK" } as unknown as ProjectResult;
+    });
     const client = { fetchProject } as unknown as SonarClient;
 
     const results = await loadFromProjects(

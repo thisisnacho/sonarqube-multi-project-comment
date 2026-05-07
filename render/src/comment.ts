@@ -4,6 +4,12 @@ type IconState = "passed" | "failed" | "no-data";
 
 export type IconStyle = "cloud" | "community-plugin";
 
+// Literal U+00A0 (non-breaking space). Used inside table cells to keep
+// icon+label and multi-word phrases on the same rendered line. The HTML
+// entity `&nbsp;` is sometimes normalised to a regular space by GitHub's
+// markdown sanitiser, so we ship the literal character instead.
+const NB = " ";
+
 export interface RenderOptions {
   header: string;
   iconBaseUrl: string;
@@ -15,7 +21,7 @@ export function renderComment(results: ProjectResult[], opts: RenderOptions): st
   const lines = [
     `## ${opts.header}`,
     "",
-    "| Project | Gate | Issues | Security | Coverage | Duplications |",
+    "| Project | Gate | Issues | Sec. | Coverage | Duplications |",
     "| --- | --- | --- | --- | --- | --- |",
     ...results.map((r) => renderRow(r, opts)),
   ];
@@ -30,7 +36,7 @@ function renderRow(r: ProjectResult, opts: RenderOptions): string {
   const projectCell = link(r.label, r.dashboardUrl);
 
   if (!r.analyzed) {
-    return `| ${projectCell} | Not&nbsp;analyzed | - | - | - | - |`;
+    return `| ${projectCell} | Not${NB}analyzed | - | - | - | - |`;
   }
 
   const host = baseHost(r.dashboardUrl);
@@ -54,13 +60,13 @@ function renderRow(r: ProjectResult, opts: RenderOptions): string {
   const newLink = linkedIcon(
     "New",
     `${commonIcon}/${countState(r.issues.new)}-16px.png`,
-    `${formatCount(r.issues.new)}&nbsp;New`,
+    `${formatCount(r.issues.new)}${NB}New`,
     newUrl,
   );
   const acceptedLink = linkedIcon(
     "Accepted",
     `${commonIcon}/accepted-16px.png`,
-    `${formatCount(r.issues.accepted)}&nbsp;Acc.`,
+    `${formatCount(r.issues.accepted)}${NB}Acc.`,
     acceptedUrl,
   );
   const issuesCell = `${newLink}<br>${acceptedLink}`;
@@ -150,12 +156,9 @@ function pctState(value: number | null): IconState {
 }
 
 function pctLabel(value: number | null, qualifier: "new" | "post-merge"): string {
-  if (qualifier === "post-merge") {
-    return value === null
-      ? "No&nbsp;data&nbsp;if&nbsp;merged"
-      : `~${value.toFixed(1)}%&nbsp;if&nbsp;merged`;
-  }
-  return value === null ? "No&nbsp;new&nbsp;data" : `${value.toFixed(1)}%&nbsp;new`;
+  if (value === null) return `No${NB}data`;
+  if (qualifier === "post-merge") return `~${value.toFixed(1)}%${NB}merged`;
+  return `${value.toFixed(1)}%${NB}new`;
 }
 
 function formatCount(count: number | null): string {
@@ -163,10 +166,7 @@ function formatCount(count: number | null): string {
 }
 
 function linkedIcon(alt: string, iconUrl: string, text: string, href: string): string {
-  // &nbsp; (non-breaking space) keeps the icon and label on the same line
-  // when the cell is narrow; a regular space lets GitHub's table renderer
-  // wrap them onto separate lines.
-  return `<a href="${href}"><img src="${iconUrl}" alt="${alt}">&nbsp;${text}</a>`;
+  return `<a href="${href}"><img src="${iconUrl}" alt="${alt}">${NB}${text}</a>`;
 }
 
 function link(text: string, href: string): string {

@@ -3,14 +3,22 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import * as glob from "@actions/glob";
 import { overallQualityGate, renderComment } from "./comment.js";
-import { SonarClient, stripTrailingSlash } from "./sonar.js";
-import {
-  loadFromProjects,
-  loadFromReportTaskFiles,
-  parseProjectsInput,
-} from "./sources.js";
+import type { Globber } from "./deps.js";
+import { SonarClient, type SonarClientDeps, stripTrailingSlash } from "./sonar.js";
+import { loadFromProjects, parseProjectsInput, ReportTaskLoader } from "./sources.js";
 import type { ProjectResult, SonarConfig } from "./types.js";
+
+const realDeps: SonarClientDeps & { readFile: (p: string) => Promise<string>; glob: Globber } = {
+  fetch: globalThis.fetch.bind(globalThis),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  readFile: (p) => fs.readFile(p, "utf8"),
+  glob: async (patterns) => {
+    const globber = await glob.create(patterns, { matchDirectories: false });
+    return globber.glob();
+  },
+};
 
 async function run(): Promise<void> {
   try {
@@ -40,8 +48,9 @@ async function run(): Promise<void> {
       throw new Error("`sonar-host-url` and `sonar-token` are required.");
     }
 
-    const config: SonarConfig = { hostUrl: sonarHostUrl, token: sonarToken, iconBaseUrl };
-    const client = new SonarClient(config);
+    const config: SonarConfig = { hostUrl: sonarHostUrl, token: sonarToken };
+    const client = new SonarClient(config, realDeps);
+    const reportTaskLoader = new ReportTaskLoader(client, realDeps);
 
     const results: ProjectResult[] = [];
     if (projectsRaw) {
@@ -49,7 +58,7 @@ async function run(): Promise<void> {
       results.push(...(await loadFromProjects(client, projects, pullRequest)));
     }
     if (reportTaskFiles) {
-      results.push(...(await loadFromReportTaskFiles(client, reportTaskFiles, pullRequest, true)));
+      results.push(...(await reportTaskLoader.load(reportTaskFiles, pullRequest, true)));
     }
 
     const overall = overallQualityGate(results);

@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import type { Fetch, Sleep } from "./deps.js";
 import type { IssueCounts, ProjectResult, QualityGateStatus, ReportTask, SonarConfig } from "./types.js";
 
 const MEASURE_METRICS = [
@@ -9,20 +10,25 @@ const MEASURE_METRICS = [
   "new_security_hotspots",
 ];
 
+export interface SonarClientDeps {
+  fetch: Fetch;
+  sleep: Sleep;
+}
+
 export class SonarClient {
   private readonly authHeader: string;
+  private readonly fetch: Fetch;
+  private readonly sleep: Sleep;
 
-  constructor(private readonly config: SonarConfig) {
+  constructor(private readonly config: SonarConfig, deps: SonarClientDeps) {
     const encoded = Buffer.from(`${config.token}:`).toString("base64");
     this.authHeader = `Basic ${encoded}`;
+    this.fetch = deps.fetch;
+    this.sleep = deps.sleep;
   }
 
   get hostUrl(): string {
     return stripTrailingSlash(this.config.hostUrl);
-  }
-
-  get iconBaseUrl(): string {
-    return stripTrailingSlash(this.config.iconBaseUrl);
   }
 
   private url(path: string, params: Record<string, string | undefined>): string {
@@ -38,7 +44,7 @@ export class SonarClient {
   private async get<T>(path: string, params: Record<string, string | undefined>): Promise<T | undefined> {
     const url = this.url(path, params);
     try {
-      const res = await fetch(url, { headers: { Authorization: this.authHeader } });
+      const res = await this.fetch(url, { headers: { Authorization: this.authHeader } });
       if (!res.ok) {
         core.debug(`GET ${url} → ${res.status}`);
         return undefined;
@@ -60,7 +66,7 @@ export class SonarClient {
       if (status === "FAILED" || status === "CANCELED") {
         throw new Error(`Compute Engine task ${taskId} ended with status ${status}`);
       }
-      await sleep(delay);
+      await this.sleep(delay);
       delay = Math.min(delay * 1.5, 10_000);
     }
     throw new Error(`Compute Engine task ${taskId} did not finish within ${timeoutMs}ms`);
@@ -164,10 +170,6 @@ function parseFloatOrNull(value: string | undefined): number | null {
   if (value === undefined || value === "") return null;
   const n = Number.parseFloat(value);
   return Number.isFinite(n) ? n : null;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function stripTrailingSlash(s: string): string {

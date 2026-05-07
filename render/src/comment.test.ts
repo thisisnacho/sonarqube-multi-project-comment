@@ -29,12 +29,12 @@ describe("renderComment", () => {
   it("renders the header and table columns", () => {
     const out = renderComment([passingResult()], cloudOpts);
     expect(out).toContain("## SonarQube PR analysis");
-    expect(out).toContain("| Project | Gate | Issues | Security | Coverage | Duplications |");
+    expect(out).toContain("| Project | Gate | Issues | Sec. | Coverage | Duplications |");
   });
 
   it("renders an unanalysed project as 'Not analyzed'", () => {
     const out = renderComment([passingResult({ analyzed: false })], cloudOpts);
-    expect(out).toContain("| Not&nbsp;analyzed | - | - | - | - |");
+    expect(out).toMatch(/\| Not analyzed \| - \| - \| - \| - \|/);
   });
 
   it("uses qg-{state}-20px badge for cloud icon style", () => {

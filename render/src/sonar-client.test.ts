@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SonarClient } from "./sonar.js";
+import { describe, expect, it, vi } from "vitest";
+import { SonarClient, type SonarClientDeps } from "./sonar.js";
 
 const config = {
   hostUrl: "https://sonar.example.com/",
   token: "tok",
-  iconBaseUrl: "https://icons.example.com/v2/",
 };
 
 function ok(json: unknown): Response {
@@ -15,26 +14,37 @@ function fail(status = 500): Response {
   return new Response("nope", { status });
 }
 
+function makeDeps(fetchImpl: typeof fetch): SonarClientDeps {
+  return {
+    fetch: fetchImpl,
+    sleep: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe("SonarClient", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, "fetch");
-  });
-  afterEach(() => {
-    fetchSpy.mockRestore();
-  });
-
-  it("strips trailing slashes from hostUrl and iconBaseUrl", () => {
-    const client = new SonarClient(config);
+  it("strips trailing slashes from hostUrl", () => {
+    const client = new SonarClient(config, makeDeps(vi.fn()));
     expect(client.hostUrl).toBe("https://sonar.example.com");
-    expect(client.iconBaseUrl).toBe("https://icons.example.com/v2");
+  });
+
+  it("sends Basic auth derived from the token", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(ok({ projectStatus: { status: "NONE" } }));
+    const client = new SonarClient(config, makeDeps(fetchMock));
+    await client.fetchProject("a", "p", "1");
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const expected = `Basic ${Buffer.from("tok:").toString("base64")}`;
+    expect((init?.headers as Record<string, string>).Authorization).toBe(expected);
   });
 
   it("returns NONE / not-analysed when quality gate is missing", async () => {
-    fetchSpy.mockResolvedValueOnce(ok({ projectStatus: { status: "NONE" } }));
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(ok({ projectStatus: { status: "NONE" } }));
 
-    const client = new SonarClient(config);
+    const client = new SonarClient(config, makeDeps(fetchMock));
     const result = await client.fetchProject("alpha", "p-alpha", "42");
 
     expect(result.qualityGate).toBe("NONE");
@@ -44,7 +54,7 @@ describe("SonarClient", () => {
   });
 
   it("aggregates quality gate, issue counts, and measures", async () => {
-    fetchSpy.mockImplementation(async (url) => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
       const u = String(url);
       if (u.includes("/api/qualitygates/project_status")) {
         return ok({ projectStatus: { status: "OK" } });
@@ -69,7 +79,7 @@ describe("SonarClient", () => {
       return fail();
     });
 
-    const client = new SonarClient(config);
+    const client = new SonarClient(config, makeDeps(fetchMock));
     const result = await client.fetchProject("alpha", "p-alpha", "42");
 
     expect(result.qualityGate).toBe("OK");
@@ -83,7 +93,7 @@ describe("SonarClient", () => {
   });
 
   it("prefers period.value over value when present", async () => {
-    fetchSpy.mockImplementation(async (url) => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
       const u = String(url);
       if (u.includes("/api/qualitygates/project_status")) {
         return ok({ projectStatus: { status: "OK" } });
@@ -91,20 +101,18 @@ describe("SonarClient", () => {
       if (u.includes("/api/issues/search")) return ok({ total: 0 });
       return ok({
         component: {
-          measures: [
-            { metric: "new_coverage", value: "10", period: { value: "99.9" } },
-          ],
+          measures: [{ metric: "new_coverage", value: "10", period: { value: "99.9" } }],
         },
       });
     });
 
-    const client = new SonarClient(config);
+    const client = new SonarClient(config, makeDeps(fetchMock));
     const result = await client.fetchProject("alpha", "p-alpha", "1");
     expect(result.newCoverage).toBe(99.9);
   });
 
   it("treats issue search failure as null count", async () => {
-    fetchSpy.mockImplementation(async (url) => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
       const u = String(url);
       if (u.includes("/api/qualitygates/project_status")) {
         return ok({ projectStatus: { status: "OK" } });
@@ -113,20 +121,38 @@ describe("SonarClient", () => {
       return ok({ component: { measures: [] } });
     });
 
-    const client = new SonarClient(config);
+    const client = new SonarClient(config, makeDeps(fetchMock));
     const result = await client.fetchProject("a", "p", "1");
     expect(result.issues).toEqual({ new: null, accepted: null });
   });
 
   it("waitForCeTask resolves on SUCCESS", async () => {
-    fetchSpy.mockResolvedValueOnce(ok({ task: { status: "SUCCESS" } }));
-    const client = new SonarClient(config);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(ok({ task: { status: "SUCCESS" } }));
+    const client = new SonarClient(config, makeDeps(fetchMock));
     await expect(client.waitForCeTask("t1")).resolves.toBeUndefined();
   });
 
   it("waitForCeTask rejects on FAILED", async () => {
-    fetchSpy.mockResolvedValueOnce(ok({ task: { status: "FAILED" } }));
-    const client = new SonarClient(config);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(ok({ task: { status: "FAILED" } }));
+    const client = new SonarClient(config, makeDeps(fetchMock));
     await expect(client.waitForCeTask("t1")).rejects.toThrow(/FAILED/);
+  });
+
+  it("waitForCeTask polls via the injected sleep until SUCCESS", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(ok({ task: { status: "PENDING" } }))
+      .mockResolvedValueOnce(ok({ task: { status: "SUCCESS" } }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    const client = new SonarClient(config, { fetch: fetchMock, sleep });
+    await client.waitForCeTask("t1");
+
+    expect(sleep).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

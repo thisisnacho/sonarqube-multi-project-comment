@@ -28,7 +28,6 @@ export interface ProjectResult {
 export interface SonarConfig {
   hostUrl: string;
   token: string;
-  iconBaseUrl: string;
 }
 
 export interface ReportTask {
