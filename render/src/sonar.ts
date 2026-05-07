@@ -1,71 +1,32 @@
 import * as core from "@actions/core";
-import type { Fetch, Sleep } from "./deps.js";
 import type {
-  IssueCounts,
   ProjectResult,
   QualityGateStatus,
   ReportTask,
   SonarConfig,
 } from "./types.js";
 
-const MEASURE_METRICS = [
-  "new_coverage",
-  "coverage",
-  "new_duplicated_lines_density",
-  "duplicated_lines_density",
-  "new_security_hotspots",
-];
-
-export interface SonarClientDeps {
-  fetch: Fetch;
-  sleep: Sleep;
-}
-
 export class SonarClient {
   private readonly authHeader: string;
-  private readonly fetch: Fetch;
-  private readonly sleep: Sleep;
 
-  constructor(
-    private readonly config: SonarConfig,
-    deps: SonarClientDeps,
-  ) {
-    const encoded = Buffer.from(`${config.token}:`).toString("base64");
-    this.authHeader = `Basic ${encoded}`;
-    this.fetch = deps.fetch;
-    this.sleep = deps.sleep;
+  constructor(private readonly config: SonarConfig) {
+    this.authHeader = `Basic ${Buffer.from(`${config.token}:`).toString("base64")}`;
   }
 
   get hostUrl(): string {
     return stripTrailingSlash(this.config.hostUrl);
   }
 
-  private url(
-    path: string,
-    params: Record<string, string | undefined>,
-  ): string {
-    const search = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && v !== "") search.set(k, v);
-    }
-    const qs = search.toString();
-    const suffix = qs ? `?${qs}` : "";
-    return `${this.hostUrl}${path}${suffix}`;
-  }
-
   private async get<T>(
     path: string,
-    params: Record<string, string | undefined>,
+    params: Record<string, string>,
   ): Promise<T | undefined> {
-    const url = this.url(path, params);
+    const url = `${this.hostUrl}${path}?${new URLSearchParams(params).toString()}`;
     try {
-      const res = await this.fetch(url, {
+      const res = await fetch(url, {
         headers: { Authorization: this.authHeader },
       });
-      if (!res.ok) {
-        core.debug(`GET ${url} → ${res.status}`);
-        return undefined;
-      }
+      if (!res.ok) return undefined;
       return (await res.json()) as T;
     } catch (err) {
       core.debug(`GET ${url} threw: ${(err as Error).message}`);
@@ -79,7 +40,9 @@ export class SonarClient {
     while (Date.now() < deadline) {
       const data = await this.get<{ task: { status: string } }>(
         "/api/ce/task",
-        { id: taskId },
+        {
+          id: taskId,
+        },
       );
       const status = data?.task?.status;
       if (status === "SUCCESS") return;
@@ -88,7 +51,7 @@ export class SonarClient {
           `Compute Engine task ${taskId} ended with status ${status}`,
         );
       }
-      await this.sleep(delay);
+      await new Promise((r) => setTimeout(r, delay));
       delay = Math.min(delay * 1.5, 10_000);
     }
     throw new Error(
@@ -103,17 +66,26 @@ export class SonarClient {
   ): Promise<ProjectResult> {
     const dashboardUrl = `${this.hostUrl}/dashboard?id=${encodeURIComponent(projectKey)}&pullRequest=${encodeURIComponent(pullRequest)}`;
 
-    const qg = await this.get<QualityGateResponse>(
+    const qg = await this.get<{ projectStatus: { status: string } }>(
       "/api/qualitygates/project_status",
-      {
-        projectKey,
-        pullRequest,
-      },
+      { projectKey, pullRequest },
     );
     const status = (qg?.projectStatus.status as QualityGateStatus) ?? "NONE";
 
     if (status === "NONE") {
-      return emptyResult(label, projectKey, dashboardUrl, status, false);
+      return {
+        label,
+        projectKey,
+        qualityGate: status,
+        analyzed: false,
+        issues: { new: null, accepted: null },
+        newSecurityHotspots: null,
+        newCoverage: null,
+        coverage: null,
+        newDuplications: null,
+        duplications: null,
+        dashboardUrl,
+      };
     }
 
     const [newIssues, acceptedIssues, measures] = await Promise.all([
@@ -131,15 +103,12 @@ export class SonarClient {
       projectKey,
       qualityGate: status,
       analyzed: true,
-      issues: {
-        new: newIssues,
-        accepted: acceptedIssues,
-      } satisfies IssueCounts,
-      newSecurityHotspots: parseIntOrNull(measures.new_security_hotspots) ?? 0,
-      newCoverage: parseFloatOrNull(measures.new_coverage),
-      coverage: parseFloatOrNull(measures.coverage),
-      newDuplications: parseFloatOrNull(measures.new_duplicated_lines_density),
-      duplications: parseFloatOrNull(measures.duplicated_lines_density),
+      issues: { new: newIssues, accepted: acceptedIssues },
+      newSecurityHotspots: numOrNull(measures.new_security_hotspots) ?? 0,
+      newCoverage: numOrNull(measures.new_coverage),
+      coverage: numOrNull(measures.coverage),
+      newDuplications: numOrNull(measures.new_duplicated_lines_density),
+      duplications: numOrNull(measures.duplicated_lines_density),
       dashboardUrl,
     };
   }
@@ -160,10 +129,19 @@ export class SonarClient {
     projectKey: string,
     pullRequest: string,
   ): Promise<Record<string, string | undefined>> {
-    const res = await this.get<MeasuresResponse>("/api/measures/component", {
+    const res = await this.get<{
+      component: {
+        measures: {
+          metric: string;
+          value?: string;
+          period?: { value?: string };
+        }[];
+      };
+    }>("/api/measures/component", {
       component: projectKey,
       pullRequest,
-      metricKeys: MEASURE_METRICS.join(","),
+      metricKeys:
+        "new_coverage,coverage,new_duplicated_lines_density,duplicated_lines_density,new_security_hotspots",
     });
     const out: Record<string, string | undefined> = {};
     for (const m of res?.component.measures ?? []) {
@@ -173,54 +151,26 @@ export class SonarClient {
   }
 }
 
-function emptyResult(
-  label: string,
-  projectKey: string,
-  dashboardUrl: string,
-  qualityGate: QualityGateStatus,
-  analyzed: boolean,
-): ProjectResult {
-  return {
-    label,
-    projectKey,
-    qualityGate,
-    analyzed,
-    issues: { new: null, accepted: null },
-    newSecurityHotspots: null,
-    newCoverage: null,
-    coverage: null,
-    newDuplications: null,
-    duplications: null,
-    dashboardUrl,
-  };
-}
-
-function parseIntOrNull(value: string | undefined): number | null {
-  if (value === undefined || value === "") return null;
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseFloatOrNull(value: string | undefined): number | null {
-  if (value === undefined || value === "") return null;
-  const n = Number.parseFloat(value);
+function numOrNull(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
 export function stripTrailingSlash(s: string): string {
-  let result = s;
-  while (result.endsWith("/")) result = result.slice(0, -1);
-  return result;
+  let r = s;
+  while (r.endsWith("/")) r = r.slice(0, -1);
+  return r;
 }
 
 export function parseReportTask(content: string): ReportTask {
   const map: Record<string, string> = {};
-  for (const raw of content.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
-    const eq = line.indexOf("=");
+  for (const line of content.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
     if (eq === -1) continue;
-    map[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
+    map[t.slice(0, eq).trim()] = t.slice(eq + 1).trim();
   }
   if (!map.projectKey || !map.ceTaskId) {
     throw new Error(
@@ -233,21 +183,5 @@ export function parseReportTask(content: string): ReportTask {
     dashboardUrl: map.dashboardUrl,
     ceTaskId: map.ceTaskId,
     ceTaskUrl: map.ceTaskUrl,
-  };
-}
-
-interface QualityGateResponse {
-  projectStatus: {
-    status: string;
-  };
-}
-
-interface MeasuresResponse {
-  component: {
-    measures: Array<{
-      metric: string;
-      value?: string;
-      period?: { value?: string };
-    }>;
   };
 }

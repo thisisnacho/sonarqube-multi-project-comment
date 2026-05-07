@@ -1,40 +1,31 @@
-import { describe, expect, it, vi } from "vitest";
-import { SonarClient, type SonarClientDeps } from "./sonar.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SonarClient } from "./sonar.js";
 
-const config = {
-  hostUrl: "https://sonar.example.com/",
-  token: "tok",
-};
+const config = { hostUrl: "https://sonar.example.com/", token: "tok" };
 
-function ok(json: unknown): Response {
-  return new Response(JSON.stringify(json), { status: 200 });
-}
-
-function fail(status = 500): Response {
-  return new Response("nope", { status });
-}
-
-function makeDeps(fetchImpl: typeof fetch): SonarClientDeps {
-  return {
-    fetch: fetchImpl,
-    sleep: vi.fn().mockResolvedValue(undefined),
-  };
-}
+const ok = (json: unknown) =>
+  new Response(JSON.stringify(json), { status: 200 });
+const fail = (status = 500) => new Response("nope", { status });
 
 describe("SonarClient", () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, "fetch");
+  });
+  afterEach(() => {
+    fetchSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
   it("strips trailing slashes from hostUrl", () => {
-    const client = new SonarClient(config, makeDeps(vi.fn()));
-    expect(client.hostUrl).toBe("https://sonar.example.com");
+    expect(new SonarClient(config).hostUrl).toBe("https://sonar.example.com");
   });
 
   it("sends Basic auth derived from the token", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(ok({ projectStatus: { status: "NONE" } }));
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    await client.fetchProject("a", "p", "1");
-
-    const [, init] = fetchMock.mock.calls[0]!;
+    fetchSpy.mockResolvedValue(ok({ projectStatus: { status: "NONE" } }));
+    await new SonarClient(config).fetchProject("a", "p", "1");
+    const init = fetchSpy.mock.calls[0]![1];
     const expected = `Basic ${Buffer.from("tok:").toString("base64")}`;
     expect((init?.headers as Record<string, string>).Authorization).toBe(
       expected,
@@ -42,12 +33,12 @@ describe("SonarClient", () => {
   });
 
   it("returns NONE / not-analysed when quality gate is missing", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(ok({ projectStatus: { status: "NONE" } }));
-
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    const result = await client.fetchProject("alpha", "p-alpha", "42");
+    fetchSpy.mockResolvedValue(ok({ projectStatus: { status: "NONE" } }));
+    const result = await new SonarClient(config).fetchProject(
+      "alpha",
+      "p-alpha",
+      "42",
+    );
 
     expect(result.qualityGate).toBe("NONE");
     expect(result.analyzed).toBe(false);
@@ -56,16 +47,15 @@ describe("SonarClient", () => {
   });
 
   it("aggregates quality gate, issue counts, and measures", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    fetchSpy.mockImplementation(async (url) => {
       const u = String(url);
-      if (u.includes("/api/qualitygates/project_status")) {
+      if (u.includes("/api/qualitygates/project_status"))
         return ok({ projectStatus: { status: "OK" } });
-      }
       if (u.includes("/api/issues/search")) {
         if (u.includes("issueStatuses=ACCEPTED")) return ok({ total: 1 });
         return ok({ total: 3 });
       }
-      if (u.includes("/api/measures/component")) {
+      if (u.includes("/api/measures/component"))
         return ok({
           component: {
             measures: [
@@ -77,12 +67,14 @@ describe("SonarClient", () => {
             ],
           },
         });
-      }
       return fail();
     });
 
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    const result = await client.fetchProject("alpha", "p-alpha", "42");
+    const result = await new SonarClient(config).fetchProject(
+      "alpha",
+      "p-alpha",
+      "42",
+    );
 
     expect(result.qualityGate).toBe("OK");
     expect(result.analyzed).toBe(true);
@@ -95,11 +87,10 @@ describe("SonarClient", () => {
   });
 
   it("prefers period.value over value when present", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    fetchSpy.mockImplementation(async (url) => {
       const u = String(url);
-      if (u.includes("/api/qualitygates/project_status")) {
+      if (u.includes("/api/qualitygates/project_status"))
         return ok({ projectStatus: { status: "OK" } });
-      }
       if (u.includes("/api/issues/search")) return ok({ total: 0 });
       return ok({
         component: {
@@ -110,53 +101,51 @@ describe("SonarClient", () => {
       });
     });
 
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    const result = await client.fetchProject("alpha", "p-alpha", "1");
+    const result = await new SonarClient(config).fetchProject(
+      "alpha",
+      "p-alpha",
+      "1",
+    );
     expect(result.newCoverage).toBe(99.9);
   });
 
   it("treats issue search failure as null count", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    fetchSpy.mockImplementation(async (url) => {
       const u = String(url);
-      if (u.includes("/api/qualitygates/project_status")) {
+      if (u.includes("/api/qualitygates/project_status"))
         return ok({ projectStatus: { status: "OK" } });
-      }
       if (u.includes("/api/issues/search")) return fail();
       return ok({ component: { measures: [] } });
     });
 
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    const result = await client.fetchProject("a", "p", "1");
+    const result = await new SonarClient(config).fetchProject("a", "p", "1");
     expect(result.issues).toEqual({ new: null, accepted: null });
   });
 
   it("waitForCeTask resolves on SUCCESS", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(ok({ task: { status: "SUCCESS" } }));
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    await expect(client.waitForCeTask("t1")).resolves.toBeUndefined();
+    fetchSpy.mockResolvedValueOnce(ok({ task: { status: "SUCCESS" } }));
+    await expect(
+      new SonarClient(config).waitForCeTask("t1"),
+    ).resolves.toBeUndefined();
   });
 
   it("waitForCeTask rejects on FAILED", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(ok({ task: { status: "FAILED" } }));
-    const client = new SonarClient(config, makeDeps(fetchMock));
-    await expect(client.waitForCeTask("t1")).rejects.toThrow(/FAILED/);
+    fetchSpy.mockResolvedValueOnce(ok({ task: { status: "FAILED" } }));
+    await expect(new SonarClient(config).waitForCeTask("t1")).rejects.toThrow(
+      /FAILED/,
+    );
   });
 
-  it("waitForCeTask polls via the injected sleep until SUCCESS", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
+  it("waitForCeTask polls until SUCCESS", async () => {
+    vi.useFakeTimers();
+    fetchSpy
       .mockResolvedValueOnce(ok({ task: { status: "PENDING" } }))
       .mockResolvedValueOnce(ok({ task: { status: "SUCCESS" } }));
-    const sleep = vi.fn().mockResolvedValue(undefined);
 
-    const client = new SonarClient(config, { fetch: fetchMock, sleep });
-    await client.waitForCeTask("t1");
+    const promise = new SonarClient(config).waitForCeTask("t1");
+    await vi.runAllTimersAsync();
+    await promise;
 
-    expect(sleep).toHaveBeenCalledOnce();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

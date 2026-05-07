@@ -3,33 +3,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import * as glob from "@actions/glob";
 import { overallQualityGate, renderComment } from "./comment.js";
-import type { Globber } from "./deps.js";
-import {
-  SonarClient,
-  type SonarClientDeps,
-  stripTrailingSlash,
-} from "./sonar.js";
+import { SonarClient, stripTrailingSlash } from "./sonar.js";
 import {
   loadFromProjects,
+  loadFromReportTaskFiles,
   parseProjectsInput,
-  ReportTaskLoader,
 } from "./sources.js";
 import type { ProjectResult, SonarConfig } from "./types.js";
-
-const realDeps: SonarClientDeps & {
-  readFile: (p: string) => Promise<string>;
-  glob: Globber;
-} = {
-  fetch: globalThis.fetch.bind(globalThis),
-  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  readFile: (p) => fs.readFile(p, "utf8"),
-  glob: async (patterns) => {
-    const globber = await glob.create(patterns, { matchDirectories: false });
-    return globber.glob();
-  },
-};
 
 async function run(): Promise<void> {
   try {
@@ -50,20 +31,20 @@ async function run(): Promise<void> {
     }
     const iconBaseUrl =
       core.getInput("icon-base-url") ||
-      defaultIconBase(iconStyle, sonarHostUrl);
+      (iconStyle === "cloud"
+        ? "https://sonarsource.github.io/sonarcloud-github-static-resources/v2"
+        : `${stripTrailingSlash(sonarHostUrl)}/static/communityBranchPlugin`);
     const footer =
       core.getInput("footer") || "Aggregated from per-project SonarQube scans.";
-
-    const pullRequestInput = core.getInput("pr-number");
     const pullRequest =
-      pullRequestInput ||
+      core.getInput("pr-number") ||
       `${github.context.payload.pull_request?.number ?? ""}`;
+
     if (!pullRequest) {
       throw new Error(
         "Could not determine pull request number — set the `pr-number` input.",
       );
     }
-
     if (!projectsRaw && !reportTaskFiles) {
       throw new Error(
         "Provide at least one of `projects` or `report-task-files`.",
@@ -74,17 +55,26 @@ async function run(): Promise<void> {
     }
 
     const config: SonarConfig = { hostUrl: sonarHostUrl, token: sonarToken };
-    const client = new SonarClient(config, realDeps);
-    const reportTaskLoader = new ReportTaskLoader(client, realDeps);
+    const client = new SonarClient(config);
 
     const results: ProjectResult[] = [];
     if (projectsRaw) {
-      const projects = parseProjectsInput(projectsRaw);
-      results.push(...(await loadFromProjects(client, projects, pullRequest)));
+      results.push(
+        ...(await loadFromProjects(
+          client,
+          parseProjectsInput(projectsRaw),
+          pullRequest,
+        )),
+      );
     }
     if (reportTaskFiles) {
       results.push(
-        ...(await reportTaskLoader.load(reportTaskFiles, pullRequest, true)),
+        ...(await loadFromReportTaskFiles(
+          client,
+          reportTaskFiles,
+          pullRequest,
+          true,
+        )),
       );
     }
 
@@ -103,7 +93,6 @@ async function run(): Promise<void> {
       iconStyle,
       footer,
     });
-
     const tmpDir = process.env.RUNNER_TEMP || os.tmpdir();
     const bodyPath = path.join(tmpDir, "sonarqube-multi-project-comment.md");
     await fs.writeFile(bodyPath, body, "utf8");
@@ -115,16 +104,6 @@ async function run(): Promise<void> {
   } catch (err) {
     core.setFailed((err as Error).message);
   }
-}
-
-function defaultIconBase(
-  style: "cloud" | "community-plugin",
-  sonarHostUrl: string,
-): string {
-  if (style === "cloud") {
-    return "https://sonarsource.github.io/sonarcloud-github-static-resources/v2";
-  }
-  return `${stripTrailingSlash(sonarHostUrl)}/static/communityBranchPlugin`;
 }
 
 await run();
