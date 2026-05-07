@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [frontend, backend, api]
+        project: [alpha, beta, gamma]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

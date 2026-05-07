@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [frontend, backend, api]
+        project: [alpha, beta, gamma]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
           sonar-host-url: ${{ vars.SONAR_HOST_URL }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
           projects: |
-            frontend|multi-comment-demo-frontend
-            backend|multi-comment-demo-backend
-            api|multi-comment-demo-api
+            alpha|multi-comment-demo-alpha
+            beta|multi-comment-demo-beta
+            gamma|multi-comment-demo-gamma
           sticky-header: demo-projects-list

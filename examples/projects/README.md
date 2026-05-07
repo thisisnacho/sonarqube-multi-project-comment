@@ -6,9 +6,9 @@ end-to-end against a real SonarQube instance. They are scanned by the
 
 | Directory | Sonar projectKey |
 | --- | --- |
-| `frontend/` | `multi-comment-demo-frontend` |
-| `backend/` | `multi-comment-demo-backend` |
-| `api/` | `multi-comment-demo-api` |
+| `alpha/` | `multi-comment-demo-alpha` |
+| `beta/` | `multi-comment-demo-beta` |
+| `gamma/` | `multi-comment-demo-gamma` |
 
 You'll need to either pre-create these projects on your SonarQube/SonarCloud
 instance or enable auto-creation. The token in `secrets.SONAR_TOKEN` must
