@@ -63707,7 +63707,6 @@ async function run() {
         const sonarToken = core.getInput("sonar-token");
         const projectsRaw = core.getInput("projects");
         const reportTaskFiles = core.getInput("report-task-files");
-        const resultsJson = core.getInput("results-json");
         const commentHeader = core.getInput("comment-header") || "SonarQube PR analysis";
         const failOnGate = core.getBooleanInput("fail-on-quality-gate");
         const iconBaseUrl = core.getInput("icon-base-url") || `${sonarHostUrl.replace(/\/+$/, "")}/static/communityBranchPlugin`;
@@ -63718,28 +63717,20 @@ async function run() {
         if (!pullRequest) {
             throw new Error("Could not determine pull request number — set the `pr-number` input.");
         }
-        const sources = countSources({ projectsRaw, reportTaskFiles, resultsJson });
-        if (sources === 0) {
-            throw new Error("Provide at least one of `projects`, `report-task-files`, or `results-json`.");
+        if (!projectsRaw && !reportTaskFiles) {
+            throw new Error("Provide at least one of `projects` or `report-task-files`.");
         }
-        const needsClient = projectsRaw || reportTaskFiles;
-        let client;
-        if (needsClient) {
-            if (!sonarHostUrl || !sonarToken) {
-                throw new Error("`sonar-host-url` and `sonar-token` are required when querying the SonarQube API.");
-            }
-            const config = { hostUrl: sonarHostUrl, token: sonarToken, iconBaseUrl };
-            client = new sonar_1.SonarClient(config);
+        if (!sonarHostUrl || !sonarToken) {
+            throw new Error("`sonar-host-url` and `sonar-token` are required.");
         }
+        const config = { hostUrl: sonarHostUrl, token: sonarToken, iconBaseUrl };
+        const client = new sonar_1.SonarClient(config);
         const results = [];
-        if (resultsJson) {
-            results.push(...(0, sources_1.parseInlineResults)(resultsJson));
-        }
-        if (projectsRaw && client) {
+        if (projectsRaw) {
             const projects = (0, sources_1.parseProjectsInput)(projectsRaw);
             results.push(...(await (0, sources_1.loadFromProjects)(client, projects, pullRequest)));
         }
-        if (reportTaskFiles && client) {
+        if (reportTaskFiles) {
             results.push(...(await (0, sources_1.loadFromReportTaskFiles)(client, reportTaskFiles, pullRequest, true)));
         }
         const overall = (0, comment_1.overallQualityGate)(results);
@@ -63765,9 +63756,6 @@ async function run() {
     catch (err) {
         core.setFailed(err.message);
     }
-}
-function countSources(inputs) {
-    return [inputs.projectsRaw, inputs.reportTaskFiles, inputs.resultsJson].filter((v) => v.trim().length > 0).length;
 }
 void run();
 
@@ -64031,7 +64019,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseProjectsInput = parseProjectsInput;
 exports.loadFromProjects = loadFromProjects;
 exports.loadFromReportTaskFiles = loadFromReportTaskFiles;
-exports.parseInlineResults = parseInlineResults;
 const fs = __importStar(__nccwpck_require__(1455));
 const core = __importStar(__nccwpck_require__(6618));
 const glob = __importStar(__nccwpck_require__(44));
@@ -64086,20 +64073,11 @@ async function loadFromReportTaskFiles(client, patterns, pullRequest, waitForTas
                 await client.waitForCeTask(task.ceTaskId);
             }
             catch (err) {
-                core.warning(`Compute Engine wait failed for ${task.projectKey}: ${err.message}`);
+                core.warning(`Wait for SonarQube analysis failed for ${task.projectKey}: ${err.message}`);
             }
         }
         return client.fetchProject(task.projectKey, task.projectKey, pullRequest);
     }));
-}
-function parseInlineResults(raw) {
-    if (!raw.trim())
-        return [];
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data)) {
-        throw new Error("results-json must be a JSON array of ProjectResult objects");
-    }
-    return data;
 }
 
 
