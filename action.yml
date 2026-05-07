@@ -79,9 +79,13 @@ inputs:
     required: false
     default: OUTDATED
   skip-unchanged:
-    description: Skip posting when the rendered body matches the existing comment.
+    description: |
+      When true, skip posting if the rendered body matches the existing
+      comment. Default `false` so every run produces a fresh "outdated +
+      new" pair, giving an unambiguous "this is the latest" signal even
+      when the underlying numbers happen to be identical.
     required: false
-    default: 'true'
+    default: 'false'
 
 outputs:
   quality-gate:

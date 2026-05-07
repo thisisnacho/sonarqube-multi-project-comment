@@ -92,7 +92,7 @@ querying the API for results.
 | `sticky-header` | `sonarqube-aggregate` | Identifier `sticky-pull-request-comment` uses to dedupe. |
 | `hide-and-recreate` | `true` | Hide the previous aggregated comment and post fresh. |
 | `hide-classify` | `OUTDATED` | Classifier for GitHub's `minimizeComment` mutation. One of `OUTDATED`, `RESOLVED`, `OFF_TOPIC`, `SPAM`, `DUPLICATE`. |
-| `skip-unchanged` | `true` | Skip posting when the body matches the existing comment. |
+| `skip-unchanged` | `false` | When `true`, skip posting if the body matches the existing comment. Defaults to `false` so re-runs always show a fresh "latest" comment. |
 
 ## Outputs
 
