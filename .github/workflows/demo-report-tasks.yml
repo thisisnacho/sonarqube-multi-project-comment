@@ -26,6 +26,7 @@ jobs:
       - uses: SonarSource/sonarqube-scan-action@v8
         with:
           projectBaseDir: examples/projects/${{ matrix.project }}
+          args: -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}

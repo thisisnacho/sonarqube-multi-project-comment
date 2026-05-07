@@ -12,4 +12,6 @@ end-to-end against a real SonarQube instance. They are scanned by the
 
 You'll need to either pre-create these projects on your SonarQube/SonarCloud
 instance or enable auto-creation. The token in `secrets.SONAR_TOKEN` must
-have permissions to analyse them.
+have permissions to analyse them. SonarCloud users must also set
+`vars.SONAR_ORGANIZATION` to their org slug; the workflows pass it via
+`-Dsonar.organization=...`. Self-hosted SonarQube users can leave it unset.

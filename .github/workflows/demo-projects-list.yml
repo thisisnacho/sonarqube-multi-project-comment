@@ -28,7 +28,9 @@ jobs:
           projectBaseDir: examples/projects/${{ matrix.project }}
           # Block until SonarQube finishes processing so the aggregator can
           # query results immediately afterwards.
-          args: -Dsonar.qualitygate.wait=true
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
