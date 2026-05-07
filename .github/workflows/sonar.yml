@@ -28,6 +28,9 @@ jobs:
         run: |
           npm ci
           npm run test:coverage
+          # vitest emits SF: paths relative to render/; rewrite so the
+          # scanner (which runs from repo root) can resolve them.
+          sed -i 's|^SF:|SF:render/|' coverage/lcov.info
       - uses: SonarSource/sonarqube-scan-action@v8
         with:
           args: -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
