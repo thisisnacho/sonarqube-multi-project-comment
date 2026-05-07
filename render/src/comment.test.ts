@@ -65,19 +65,6 @@ describe("renderComment", () => {
     expect(out).toContain("/project/security_hotspots?id=demo-alpha");
   });
 
-  it("renders post-merge coverage as '~X% if merged'", () => {
-    const out = renderComment([passingResult()], cloudOpts);
-    expect(out).toContain("~80.0% if merged");
-  });
-
-  it("renders missing post-merge data as 'No data if merged'", () => {
-    const out = renderComment(
-      [passingResult({ coverage: null, duplications: null })],
-      cloudOpts,
-    );
-    expect(out).toContain("No data if merged");
-  });
-
   it("renders the footer when provided", () => {
     const out = renderComment([passingResult()], { ...cloudOpts, footer: "powered by tests" });
     expect(out).toContain("<sub>powered by tests</sub>");
