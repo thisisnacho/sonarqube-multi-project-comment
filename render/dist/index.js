@@ -28585,9 +28585,10 @@ module.exports = {
 /***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
 
 /* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   Q: () => (/* binding */ overallQualityGate),
-/* harmony export */   w: () => (/* binding */ renderComment)
+/* harmony export */   Q5: () => (/* binding */ overallQualityGate),
+/* harmony export */   wQ: () => (/* binding */ renderComment)
 /* harmony export */ });
+/* unused harmony export CommentRenderer */
 // Literal U+00A0 (non-breaking space). Used inside table cells to keep
 // icon+label and multi-word phrases on the same rendered line. The HTML
 // entity `&nbsp;` is sometimes normalised to a regular space by GitHub's
@@ -28602,40 +28603,61 @@ const COMMENT_TEMPLATE = `## {header}
 const ROW_TEMPLATE = "| {project} | {gate} | {issues} | {security} | {coverage} | {duplications} |";
 const NOT_ANALYZED_ROW = "| {project} | Not analyzed | - | - | - | - |";
 const FOOTER_TEMPLATE = "\n\n<sub>{text}</sub>";
+class CommentRenderer {
+    opts;
+    constructor(opts) {
+        this.opts = opts;
+    }
+    render(results) {
+        return fill(COMMENT_TEMPLATE, {
+            header: this.opts.header,
+            rows: results.map((r) => this.renderRow(r)).join("\n"),
+            footer: this.opts.footer ? fill(FOOTER_TEMPLATE, { text: this.opts.footer }) : "",
+        });
+    }
+    renderRow(r) {
+        const projectCell = link(r.label, r.dashboardUrl);
+        if (!r.analyzed)
+            return fill(NOT_ANALYZED_ROW, { project: projectCell });
+        return fill(ROW_TEMPLATE, this.buildCells(r, projectCell));
+    }
+    buildCells(r, projectCell) {
+        const { iconBaseUrl, iconStyle } = this.opts;
+        const host = baseHost(r.dashboardUrl);
+        const pr = prFrom(r.dashboardUrl);
+        const key = encodeKey(r.projectKey);
+        const commonIcon = `${iconBaseUrl}/common`;
+        const newCodeFilter = "issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true";
+        const issuesUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}`;
+        const measuresUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}`;
+        const gateState = qualityGateState(r.qualityGate);
+        const gateIcon = gateBadgeUrl(iconBaseUrl, iconStyle, gateState);
+        const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)}${NB}New`, `${issuesUrl}&${newCodeFilter}`);
+        const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)}${NB}Acc.`, `${issuesUrl}&issueStatuses=ACCEPTED`);
+        return {
+            project: projectCell,
+            gate: linkedIcon("Gate", gateIcon, qualityGateText(r.qualityGate), r.dashboardUrl),
+            issues: `${newLink}<br>${acceptedLink}`,
+            security: linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, `${host}/project/security_hotspots?id=${key}&pullRequest=${pr}&${newCodeFilter}`),
+            coverage: stackedPercent(r.newCoverage, r.coverage, "Coverage", commonIcon, `${measuresUrl}&metric=new_coverage&view=list`),
+            duplications: stackedPercent(r.newDuplications, r.duplications, "Duplications", commonIcon, `${measuresUrl}&metric=new_duplicated_lines_density&view=list`),
+        };
+    }
+}
 function renderComment(results, opts) {
-    return fill(COMMENT_TEMPLATE, {
-        header: opts.header,
-        rows: results.map((r) => renderRow(r, opts)).join("\n"),
-        footer: opts.footer ? fill(FOOTER_TEMPLATE, { text: opts.footer }) : "",
-    });
+    return new CommentRenderer(opts).render(results);
 }
-function renderRow(r, opts) {
-    const projectCell = link(r.label, r.dashboardUrl);
-    if (!r.analyzed)
-        return fill(NOT_ANALYZED_ROW, { project: projectCell });
-    return fill(ROW_TEMPLATE, buildCells(r, opts, projectCell));
-}
-function buildCells(r, opts, projectCell) {
-    const { iconBaseUrl } = opts;
-    const host = baseHost(r.dashboardUrl);
-    const pr = prFrom(r.dashboardUrl);
-    const key = encodeKey(r.projectKey);
-    const commonIcon = `${iconBaseUrl}/common`;
-    const newCodeFilter = "issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true";
-    const issuesUrl = `${host}/project/issues?id=${key}&pullRequest=${pr}`;
-    const measuresUrl = `${host}/component_measures?id=${key}&pullRequest=${pr}`;
-    const gateState = qualityGateState(r.qualityGate);
-    const gateIcon = gateBadgeUrl(iconBaseUrl, opts.iconStyle, gateState);
-    const newLink = linkedIcon("New", `${commonIcon}/${countState(r.issues.new)}-16px.png`, `${formatCount(r.issues.new)}${NB}New`, `${issuesUrl}&${newCodeFilter}`);
-    const acceptedLink = linkedIcon("Accepted", `${commonIcon}/accepted-16px.png`, `${formatCount(r.issues.accepted)}${NB}Acc.`, `${issuesUrl}&issueStatuses=ACCEPTED`);
-    return {
-        project: projectCell,
-        gate: linkedIcon("Gate", gateIcon, qualityGateText(r.qualityGate), r.dashboardUrl),
-        issues: `${newLink}<br>${acceptedLink}`,
-        security: linkedIcon("Security", `${commonIcon}/${countState(r.newSecurityHotspots)}-16px.png`, `${formatCount(r.newSecurityHotspots)}`, `${host}/project/security_hotspots?id=${key}&pullRequest=${pr}&${newCodeFilter}`),
-        coverage: stackedPercent(r.newCoverage, r.coverage, "Coverage", commonIcon, `${measuresUrl}&metric=new_coverage&view=list`),
-        duplications: stackedPercent(r.newDuplications, r.duplications, "Duplications", commonIcon, `${measuresUrl}&metric=new_duplicated_lines_density&view=list`),
-    };
+function overallQualityGate(results) {
+    if (results.length === 0)
+        return "NONE";
+    let saw = "OK";
+    for (const r of results) {
+        if (r.qualityGate === "ERROR")
+            return "ERROR";
+        if (r.qualityGate !== "OK")
+            saw = r.qualityGate;
+    }
+    return saw;
 }
 function fill(template, values) {
     return template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
@@ -28703,18 +28725,6 @@ function prFrom(dashboardUrl) {
 }
 function encodeKey(projectKey) {
     return encodeURIComponent(projectKey);
-}
-function overallQualityGate(results) {
-    if (results.length === 0)
-        return "NONE";
-    let saw = "OK";
-    for (const r of results) {
-        if (r.qualityGate === "ERROR")
-            return "ERROR";
-        if (r.qualityGate !== "OK")
-            saw = r.qualityGate;
-    }
-    return saw;
 }
 
 
@@ -28790,14 +28800,14 @@ async function run() {
         if (reportTaskFiles) {
             results.push(...(await reportTaskLoader.load(reportTaskFiles, pullRequest, true)));
         }
-        const overall = (0,_comment_js__WEBPACK_IMPORTED_MODULE_8__/* .overallQualityGate */ .Q)(results);
+        const overall = (0,_comment_js__WEBPACK_IMPORTED_MODULE_8__/* .overallQualityGate */ .Q5)(results);
         _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .setOutput */ .uH("quality-gate", overall);
         _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .setOutput */ .uH("results-json", JSON.stringify(results));
         if (results.length === 0) {
             _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .warning */ .$e("No SonarQube results to aggregate; skipping comment body.");
             return;
         }
-        const body = (0,_comment_js__WEBPACK_IMPORTED_MODULE_8__/* .renderComment */ .w)(results, {
+        const body = (0,_comment_js__WEBPACK_IMPORTED_MODULE_8__/* .renderComment */ .wQ)(results, {
             header: commentHeader,
             iconBaseUrl,
             iconStyle,
