@@ -1,15 +1,20 @@
-name: Demo (report-task globs)
+name: E2E (report-task globs)
 
-# End-to-end demo of the aggregator using the `report-task-files` input.
+# End-to-end test of the aggregator using the `report-task-files` input.
 # Each scan job uploads its report-task.txt as an artifact; the aggregator
-# downloads them all, polls the Compute Engine tasks, then queries results.
+# downloads them all, waits for SonarQube to finish processing, then queries
+# results via the action under test.
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
+      - render/src/**
+      - render/dist/**
+      - render/action.yml
+      - action.yml
       - examples/projects/**
-      - .github/workflows/demo-report-tasks.yml
+      - .github/workflows/e2e-report-tasks.yml
 
 jobs:
   scan:
@@ -53,4 +58,4 @@ jobs:
           sonar-host-url: ${{ vars.SONAR_HOST_URL }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
           report-task-files: sonar-reports/**/report-task.txt
-          sticky-header: demo-report-tasks
+          sticky-header: e2e-report-tasks

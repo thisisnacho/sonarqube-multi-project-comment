@@ -2,7 +2,7 @@
 
 These three projects exist solely to exercise the multi-project aggregator
 end-to-end against a real SonarQube instance. They are scanned by the
-`demo-projects-list` and `demo-report-tasks` workflows.
+`e2e-projects-list` and `e2e-report-tasks` workflows.
 
 | Directory | Sonar projectKey |
 | --- | --- |

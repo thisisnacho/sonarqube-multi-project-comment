@@ -121,19 +121,21 @@ This is a composite action. It runs two steps:
 
 [sticky]: https://github.com/marocchino/sticky-pull-request-comment
 
-## Demos & dogfooding
+## End-to-end tests
 
-This repo runs three Sonar workflows of its own:
+Three Sonar workflows run against this repo:
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
 | [`sonar.yml`](.github/workflows/sonar.yml) | every PR / push to `main` | Single-project scan of the real codebase (`render/src`). Lets SonarQube post its own per-project PR decoration. |
-| [`demo-projects-list.yml`](.github/workflows/demo-projects-list.yml) | manual + when `examples/projects/**` changes | Scans the three dummies under `examples/projects/`, then calls this action with an explicit `projects:` list. |
-| [`demo-report-tasks.yml`](.github/workflows/demo-report-tasks.yml) | manual + when `examples/projects/**` changes | Same scans, but uploads each `report-task.txt` as an artifact and calls this action with `report-task-files:` glob. |
+| [`e2e-projects-list.yml`](.github/workflows/e2e-projects-list.yml) | manual + when the action source or `examples/projects/**` change | Scans the three fixtures under `examples/projects/`, then calls this action with an explicit `projects:` list. |
+| [`e2e-report-tasks.yml`](.github/workflows/e2e-report-tasks.yml) | manual + when the action source or `examples/projects/**` change | Same scans, but uploads each `report-task.txt` as an artifact and calls this action with `report-task-files:` glob. |
 
-The two demos use distinct `sticky-header` values so their aggregated
-comments coexist on the same PR. See [`examples/projects/README.md`](examples/projects/README.md)
-for the dummy project layout and prerequisites.
+The two E2E workflows exercise both data-source modes against a real
+SonarQube instance and post aggregated comments. They use distinct
+`sticky-header` values so their comments coexist on the same PR. See
+[`examples/projects/README.md`](examples/projects/README.md) for the fixture
+layout and prerequisites.
 
 ## Development
 

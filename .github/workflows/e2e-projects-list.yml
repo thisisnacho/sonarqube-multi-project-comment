@@ -1,15 +1,19 @@
-name: Demo (projects list)
+name: E2E (projects list)
 
-# End-to-end demo of the aggregator using the explicit `projects` input.
-# Scans three dummy projects under examples/projects/ and posts a single
-# aggregated PR comment.
+# End-to-end test of the aggregator using the explicit `projects` input.
+# Scans three fake projects under examples/projects/ against a real Sonar
+# instance and posts a single aggregated PR comment via the action under test.
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
+      - render/src/**
+      - render/dist/**
+      - render/action.yml
+      - action.yml
       - examples/projects/**
-      - .github/workflows/demo-projects-list.yml
+      - .github/workflows/e2e-projects-list.yml
 
 jobs:
   scan:
@@ -51,4 +55,4 @@ jobs:
             alpha|multi-comment-demo-alpha
             beta|multi-comment-demo-beta
             gamma|multi-comment-demo-gamma
-          sticky-header: demo-projects-list
+          sticky-header: e2e-projects-list
