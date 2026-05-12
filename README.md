@@ -107,34 +107,13 @@ querying the API for results.
 
 By default SonarCloud posts its own summary comment for **every** project it
 analyses on a PR. With this action you want exactly one aggregated comment, so
-suppress the native ones on each project that this action will roll up. Leave
+turn the native one off on each project that this action will roll up. Leave
 it enabled (or unset) on any project that is *not* being aggregated; that one
 keeps SonarCloud's native decoration.
 
-<details>
-<summary><strong>1. SonarCloud UI — per project toggle</strong> (recommended)</summary>
-
-Open the project on SonarCloud → *Administration → General Settings → Pull
-Requests* → toggle **"Enable summary comment"** off. Stored in SonarCloud
-only, not in your repo, and takes effect on the next scan.
-</details>
-
-<details>
-<summary><strong>2. <code>sonar-project.properties</code> — source-controlled</strong></summary>
-
-Add one line to each project's `sonar-project.properties`:
-
-```properties
-sonar.pullrequest.github.summary_comment=false
-```
-
-> **Heads-up:** SonarCloud ignores this property by default. You must first
-> enable **"Allow override at scan time"** on the same setting in the
-> project's *Administration → General Settings → Pull Requests* page,
-> otherwise the line is silently dropped. If you can flip that toggle you
-> can also just turn the comment off in the UI (option 1) and skip this
-> file entirely.
-</details>
+Open each project on SonarCloud → *Administration → General Settings → Pull
+Requests* → toggle **"Enable summary comment"** off. The change takes effect
+on the next scan.
 
 ## How it works
 
