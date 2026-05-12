@@ -114,7 +114,7 @@ permissions:
 
 This is a composite action with two steps: a bundled Node sub-action
 (`./render`) that talks to the SonarQube API and emits a markdown body, and
-[`marocchino/sticky-pull-request-comment@0ea0beb`][sticky-pin] (SHA-pinned)
+[`marocchino/sticky-pull-request-comment@0ea0beb`][sticky-pin] (v3.0.4, SHA-pinned)
 that posts the body and hides the previous aggregated comment as outdated.
 
 ```mermaid
