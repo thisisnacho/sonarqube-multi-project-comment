@@ -107,35 +107,19 @@ querying the API for results.
 
 By default SonarCloud posts its own summary comment for **every** project it
 analyses on a PR. With this action you want exactly one aggregated comment, so
-suppress the native ones on each project that this action will roll up. Pick
-whichever fits — leave it enabled (or unset) on any project that is *not*
-being aggregated; that one keeps SonarCloud's native decoration.
+turn the native one off on each project that this action will roll up. Leave
+it enabled on any project that is *not* being aggregated; that one keeps
+SonarCloud's native decoration.
 
-<details>
-<summary><strong>1. <code>sonar-project.properties</code> — source-controlled</strong> (recommended)</summary>
-
-Add one line to each project's `sonar-project.properties`:
-
-```properties
-sonar.pullrequest.github.summary_comment=false
-```
-
-Forks of your repo inherit the right default automatically; the setting
-lives next to the project metadata it relates to.
-</details>
-
-<details>
-<summary><strong>2. SonarCloud UI — per project toggle</strong></summary>
-
-Open the project on SonarCloud → *Administration → General Settings → Pull
-Requests* → toggle **"Enable summary comment"** off. Stored in SonarCloud
-only, not in your repo.
-</details>
+Open each project on SonarCloud → *Administration → General Settings → Pull
+Requests* → toggle **"Enable summary comment"** off. The change takes effect
+on the next scan.
 
 ## How it works
 
-This is a composite action with two steps: a bundled Node sub-action
-(`./render`) that talks to the SonarQube API and emits a markdown body, and
+This is a composite action with two steps: a `node` invocation that runs the
+bundled script in `render/dist/` — it talks to the SonarQube API and emits a
+markdown body — and
 [`marocchino/sticky-pull-request-comment@0ea0beb`][sticky-pin] (v3.0.4, SHA-pinned)
 that posts the body and (by default) hides the previous aggregated comment as outdated.
 
