@@ -115,24 +115,30 @@ permissions:
 
 By default SonarCloud posts its own summary comment for **every** project it
 analyses on a PR. With this action you want exactly one aggregated comment, so
-suppress the native ones on each project that this action will roll up.
-**Pick one of two ways:**
+suppress the native ones on each project that this action will roll up. Pick
+whichever fits — leave it enabled (or unset) on any project that is *not*
+being aggregated; that one keeps SonarCloud's native decoration.
 
-**In `sonar-project.properties`** (source-controlled, recommended). Add:
+<details>
+<summary><strong>1. <code>sonar-project.properties</code> — source-controlled</strong> (recommended)</summary>
+
+Add one line to each project's `sonar-project.properties`:
 
 ```properties
 sonar.pullrequest.github.summary_comment=false
 ```
 
-to each project's `sonar-project.properties`. Forks of your repo inherit the
-right default automatically.
+Forks of your repo inherit the right default automatically; the setting
+lives next to the project metadata it relates to.
+</details>
 
-**In the SonarCloud UI** (per project). Open the project →
-*Administration → General Settings → Pull Requests* → toggle
-**"Enable summary comment"** off. Stored in SonarCloud only, not in your repo.
+<details>
+<summary><strong>2. SonarCloud UI — per project toggle</strong></summary>
 
-Either way, leave it enabled (or unset) on any project that is *not* being
-aggregated by this action — that one keeps SonarCloud's native decoration.
+Open the project on SonarCloud → *Administration → General Settings → Pull
+Requests* → toggle **"Enable summary comment"** off. Stored in SonarCloud
+only, not in your repo.
+</details>
 
 ## How it works
 
