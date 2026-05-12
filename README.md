@@ -103,14 +103,6 @@ querying the API for results.
 | `results-json` | JSON array of per-project results. |
 | `body-path` | Path to the rendered comment body file. |
 
-## Permissions
-
-```yaml
-permissions:
-  contents: read
-  pull-requests: write
-```
-
 ## Suppressing SonarCloud's per-project comment
 
 By default SonarCloud posts its own summary comment for **every** project it
