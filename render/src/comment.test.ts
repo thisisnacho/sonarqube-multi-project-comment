@@ -88,6 +88,38 @@ describe("renderComment", () => {
     expect(out).not.toContain("<sub>");
   });
 
+  it("renders Fail bold for ERROR status", () => {
+    const out = renderComment([passingResult({ qualityGate: "ERROR" })], cloudOpts);
+    expect(out).toContain("<strong>Fail</strong>");
+    expect(out).toContain("qg-failed-20px.png");
+  });
+
+  it("renders no-data badge and raw label for WARN", () => {
+    const out = renderComment([passingResult({ qualityGate: "WARN" })], cloudOpts);
+    expect(out).toContain("qg-no-data-20px.png");
+    expect(out).toContain("WARN</a>");
+  });
+
+  it("renders no-data badge for UNKNOWN", () => {
+    const out = renderComment([passingResult({ qualityGate: "UNKNOWN" })], cloudOpts);
+    expect(out).toContain("qg-no-data-20px.png");
+    expect(out).toContain("UNKNOWN</a>");
+  });
+
+  it("renders '?' when an issue count is null", () => {
+    const out = renderComment(
+      [
+        passingResult({
+          issues: { new: null, accepted: null },
+          newSecurityHotspots: null,
+        }),
+      ],
+      cloudOpts,
+    );
+    expect(out).toMatch(/\?\s*New/);
+    expect(out).toMatch(/\?\s*Acc\./);
+  });
+
   it("renders one row per project", () => {
     const out = renderComment(
       [

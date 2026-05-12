@@ -148,4 +148,40 @@ describe("SonarClient", () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+
+  it("waitForCeTask rejects when the deadline is exceeded", async () => {
+    vi.useFakeTimers();
+    fetchSpy.mockResolvedValue(ok({ task: { status: "PENDING" } }));
+
+    const client = new SonarClient(config);
+    const promise = client.waitForCeTask("t1", 1).catch((err) => err);
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toMatch(/did not finish/);
+  });
+
+  it("coerces non-numeric measure values to null", async () => {
+    fetchSpy.mockImplementation(async (url) => {
+      const u = String(url);
+      if (u.includes("/api/qualitygates/project_status"))
+        return ok({ projectStatus: { status: "OK" } });
+      if (u.includes("/api/issues/search")) return ok({ total: 0 });
+      return ok({
+        component: {
+          measures: [
+            { metric: "new_coverage", value: "not-a-number" },
+            { metric: "coverage", value: "" },
+            { metric: "new_security_hotspots", value: "NaN" },
+          ],
+        },
+      });
+    });
+
+    const result = await new SonarClient(config).fetchProject("a", "p", "1");
+    expect(result.newCoverage).toBeNull();
+    expect(result.coverage).toBeNull();
+    expect(result.newSecurityHotspots).toBe(0);
+  });
 });
