@@ -83,4 +83,5 @@ jobs:
           sonar-host-url: ${{ vars.SONAR_HOST_URL }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
           report-task-files: sonar-reports/**/report-task.txt
+          comment-header: "E2E: SonarQube PR analysis (report-task files mode)"
           sticky-header: e2e-report-tasks

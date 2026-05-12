@@ -80,4 +80,5 @@ jobs:
             alpha|multi-comment-demo-alpha
             beta|multi-comment-demo-beta
             gamma|multi-comment-demo-gamma
+          comment-header: "E2E: SonarQube PR analysis (projects list mode)"
           sticky-header: e2e-projects-list
