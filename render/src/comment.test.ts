@@ -89,19 +89,28 @@ describe("renderComment", () => {
   });
 
   it("renders Fail bold for ERROR status", () => {
-    const out = renderComment([passingResult({ qualityGate: "ERROR" })], cloudOpts);
+    const out = renderComment(
+      [passingResult({ qualityGate: "ERROR" })],
+      cloudOpts,
+    );
     expect(out).toContain("<strong>Fail</strong>");
     expect(out).toContain("qg-failed-20px.png");
   });
 
   it("renders no-data badge and raw label for WARN", () => {
-    const out = renderComment([passingResult({ qualityGate: "WARN" })], cloudOpts);
+    const out = renderComment(
+      [passingResult({ qualityGate: "WARN" })],
+      cloudOpts,
+    );
     expect(out).toContain("qg-no-data-20px.png");
     expect(out).toContain("WARN</a>");
   });
 
   it("renders no-data badge for UNKNOWN", () => {
-    const out = renderComment([passingResult({ qualityGate: "UNKNOWN" })], cloudOpts);
+    const out = renderComment(
+      [passingResult({ qualityGate: "UNKNOWN" })],
+      cloudOpts,
+    );
     expect(out).toContain("qg-no-data-20px.png");
     expect(out).toContain("UNKNOWN</a>");
   });
