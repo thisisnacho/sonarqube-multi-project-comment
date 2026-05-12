@@ -117,8 +117,9 @@ on the next scan.
 
 ## How it works
 
-This is a composite action with two steps: a bundled Node sub-action
-(`./render`) that talks to the SonarQube API and emits a markdown body, and
+This is a composite action with two steps: a `node` invocation that runs the
+bundled script in `render/dist/` — it talks to the SonarQube API and emits a
+markdown body — and
 [`marocchino/sticky-pull-request-comment@0ea0beb`][sticky-pin] (v3.0.4, SHA-pinned)
 that posts the body and (by default) hides the previous aggregated comment as outdated.
 

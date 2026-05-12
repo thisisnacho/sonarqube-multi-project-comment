@@ -101,19 +101,25 @@ outputs:
 runs:
   using: composite
   steps:
+    # Invoke the bundled Node script directly via `${{ github.action_path }}`
+    # so the path resolves to this action's own checkout, not the consumer's
+    # workspace. Avoids the resolution edge cases of `uses: ./sub-action` in
+    # composite actions (some runners resolve relative to $GITHUB_WORKSPACE
+    # instead and fail with "Can't find 'action.yml' under .../render").
     - id: render
-      uses: ./render
-      with:
-        sonar-host-url: ${{ inputs.sonar-host-url }}
-        sonar-token: ${{ inputs.sonar-token }}
-        projects: ${{ inputs.projects }}
-        report-task-files: ${{ inputs.report-task-files }}
-        pr-number: ${{ inputs.pr-number }}
-        comment-header: ${{ inputs.comment-header }}
-        icon-style: ${{ inputs.icon-style }}
-        icon-base-url: ${{ inputs.icon-base-url }}
-        footer: ${{ inputs.footer }}
-        fail-on-quality-gate: ${{ inputs.fail-on-quality-gate }}
+      shell: bash
+      env:
+        INPUT_SONAR-HOST-URL: ${{ inputs.sonar-host-url }}
+        INPUT_SONAR-TOKEN: ${{ inputs.sonar-token }}
+        INPUT_PROJECTS: ${{ inputs.projects }}
+        INPUT_REPORT-TASK-FILES: ${{ inputs.report-task-files }}
+        INPUT_PR-NUMBER: ${{ inputs.pr-number }}
+        INPUT_COMMENT-HEADER: ${{ inputs.comment-header }}
+        INPUT_ICON-STYLE: ${{ inputs.icon-style }}
+        INPUT_ICON-BASE-URL: ${{ inputs.icon-base-url }}
+        INPUT_FOOTER: ${{ inputs.footer }}
+        INPUT_FAIL-ON-QUALITY-GATE: ${{ inputs.fail-on-quality-gate }}
+      run: node "${{ github.action_path }}/render/dist/index.js"
 
     - if: steps.render.outputs.body-path != ''
       uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
