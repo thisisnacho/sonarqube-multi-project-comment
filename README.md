@@ -114,10 +114,8 @@ permissions:
 
 This is a composite action with two steps: a bundled Node sub-action
 (`./render`) that talks to the SonarQube API and emits a markdown body, and
-[`marocchino/sticky-pull-request-comment`][sticky] that posts the body and
-hides the previous aggregated comment as outdated. The third-party action is
-pinned by commit SHA — [`0ea0beb`][sticky-pin] (v3.0.4) — to avoid supply-chain
-drift; Dependabot will open a PR when a newer SHA is available.
+[`marocchino/sticky-pull-request-comment@0ea0beb`][sticky-pin] (SHA-pinned)
+that posts the body and hides the previous aggregated comment as outdated.
 
 ```mermaid
 sequenceDiagram
@@ -172,7 +170,6 @@ All requests are sent with `Authorization: Basic <base64(token:)>` derived from
 `sonar-token`. Requests for one project run concurrently; projects themselves
 also run in parallel.
 
-[sticky]: https://github.com/marocchino/sticky-pull-request-comment
 [sticky-pin]: https://github.com/marocchino/sticky-pull-request-comment/commit/0ea0beb66eb9baf113663a64ec522f60e49231c0
 
 ## End-to-end tests
