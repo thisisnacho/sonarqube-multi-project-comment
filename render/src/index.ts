@@ -3,7 +3,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { overallQualityGate, renderComment } from "./comment.js";
+import {
+  inferIconStyle,
+  overallQualityGate,
+  renderComment,
+} from "./comment.js";
 import { SonarClient, stripTrailingSlash } from "./sonar.js";
 import {
   loadFromProjects,
@@ -14,14 +18,15 @@ import type { ProjectResult, SonarConfig } from "./types.js";
 
 async function run(): Promise<void> {
   try {
-    const sonarHostUrl = core.getInput("sonar-host-url");
     const sonarToken = core.getInput("sonar-token");
     const projectsRaw = core.getInput("projects");
     const reportTaskFiles = core.getInput("report-task-files");
     const commentHeader =
       core.getInput("comment-header") || "SonarQube PR analysis";
     const failOnGate = core.getBooleanInput("fail-on-quality-gate");
-    const iconStyle = (core.getInput("icon-style") || "cloud") as
+    const sonarHostUrl = core.getInput("sonar-host-url");
+    const iconStyleInput = core.getInput("icon-style");
+    const iconStyle = (iconStyleInput || inferIconStyle(sonarHostUrl)) as
       | "cloud"
       | "community-plugin";
     if (iconStyle !== "cloud" && iconStyle !== "community-plugin") {

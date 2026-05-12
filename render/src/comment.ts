@@ -3,6 +3,18 @@ import type { ProjectResult, QualityGateStatus } from "./types.js";
 type IconState = "passed" | "failed" | "no-data";
 export type IconStyle = "cloud" | "community-plugin";
 
+export function inferIconStyle(hostUrl: string): IconStyle {
+  try {
+    const { hostname } = new URL(hostUrl);
+    if (hostname === "sonarcloud.io" || hostname.endsWith(".sonarcloud.io")) {
+      return "cloud";
+    }
+  } catch {
+    // fall through to community-plugin default
+  }
+  return "community-plugin";
+}
+
 // Literal U+00A0 (non-breaking space). The HTML entity `&nbsp;` is sometimes
 // normalised to a regular space by GitHub's markdown sanitiser; the literal
 // character can't be stripped, so icon+label and multi-word phrases stay on

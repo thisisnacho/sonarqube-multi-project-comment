@@ -28585,9 +28585,22 @@ module.exports = {
 /***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
 
 /* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   Q: () => (/* binding */ overallQualityGate),
-/* harmony export */   w: () => (/* binding */ renderComment)
+/* harmony export */   Q5: () => (/* binding */ overallQualityGate),
+/* harmony export */   nA: () => (/* binding */ inferIconStyle),
+/* harmony export */   wQ: () => (/* binding */ renderComment)
 /* harmony export */ });
+function inferIconStyle(hostUrl) {
+    try {
+        const { hostname } = new URL(hostUrl);
+        if (hostname === "sonarcloud.io" || hostname.endsWith(".sonarcloud.io")) {
+            return "cloud";
+        }
+    }
+    catch {
+        // fall through to community-plugin default
+    }
+    return "community-plugin";
+}
 // Literal U+00A0 (non-breaking space). The HTML entity `&nbsp;` is sometimes
 // normalised to a regular space by GitHub's markdown sanitiser; the literal
 // character can't be stripped, so icon+label and multi-word phrases stay on
@@ -28701,13 +28714,14 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 
 async function run() {
     try {
-        const sonarHostUrl = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("sonar-host-url");
         const sonarToken = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("sonar-token");
         const projectsRaw = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("projects");
         const reportTaskFiles = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("report-task-files");
         const commentHeader = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("comment-header") || "SonarQube PR analysis";
         const failOnGate = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getBooleanInput */ .Vt("fail-on-quality-gate");
-        const iconStyle = (_actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("icon-style") || "cloud");
+        const sonarHostUrl = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("sonar-host-url");
+        const iconStyleInput = _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4("icon-style");
+        const iconStyle = (iconStyleInput || (0,_comment_js__WEBPACK_IMPORTED_MODULE_5__/* .inferIconStyle */ .nA)(sonarHostUrl));
         if (iconStyle !== "cloud" && iconStyle !== "community-plugin") {
             throw new Error(`icon-style must be "cloud" or "community-plugin", got: ${iconStyle}`);
         }
@@ -28736,14 +28750,14 @@ async function run() {
         if (reportTaskFiles) {
             results.push(...(await (0,_sources_js__WEBPACK_IMPORTED_MODULE_7__/* .loadFromReportTaskFiles */ .N_)(client, reportTaskFiles, pullRequest, true)));
         }
-        const overall = (0,_comment_js__WEBPACK_IMPORTED_MODULE_5__/* .overallQualityGate */ .Q)(results);
+        const overall = (0,_comment_js__WEBPACK_IMPORTED_MODULE_5__/* .overallQualityGate */ .Q5)(results);
         _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .setOutput */ .uH("quality-gate", overall);
         _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .setOutput */ .uH("results-json", JSON.stringify(results));
         if (results.length === 0) {
             _actions_core__WEBPACK_IMPORTED_MODULE_3__/* .warning */ .$e("No SonarQube results to aggregate; skipping comment body.");
             return;
         }
-        const body = (0,_comment_js__WEBPACK_IMPORTED_MODULE_5__/* .renderComment */ .w)(results, {
+        const body = (0,_comment_js__WEBPACK_IMPORTED_MODULE_5__/* .renderComment */ .wQ)(results, {
             header: commentHeader,
             iconBaseUrl,
             iconStyle,

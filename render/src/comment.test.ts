@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  inferIconStyle,
   overallQualityGate,
   renderComment,
   type RenderOptions,
@@ -139,6 +140,31 @@ describe("renderComment", () => {
     );
     const rowCount = (out.match(/^\| <a href=/gm) ?? []).length;
     expect(rowCount).toBe(2);
+  });
+});
+
+describe("inferIconStyle", () => {
+  it("returns cloud for https://sonarcloud.io", () => {
+    expect(inferIconStyle("https://sonarcloud.io")).toBe("cloud");
+  });
+
+  it("returns cloud for sonarcloud.io with trailing slash", () => {
+    expect(inferIconStyle("https://sonarcloud.io/")).toBe("cloud");
+  });
+
+  it("returns cloud for sonarcloud.io subdomains", () => {
+    expect(inferIconStyle("https://eu.sonarcloud.io")).toBe("cloud");
+  });
+
+  it("returns community-plugin for self-hosted hosts", () => {
+    expect(inferIconStyle("https://sonar.example.com")).toBe(
+      "community-plugin",
+    );
+  });
+
+  it("returns community-plugin for an empty or invalid URL", () => {
+    expect(inferIconStyle("")).toBe("community-plugin");
+    expect(inferIconStyle("not-a-url")).toBe("community-plugin");
   });
 });
 

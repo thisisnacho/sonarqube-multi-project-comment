@@ -85,7 +85,7 @@ querying the API for results.
 | `report-task-files` | — | Glob of `report-task.txt` files produced by the scanner. |
 | `pr-number` | from context | Pull request number override. |
 | `comment-header` | `SonarQube PR analysis` | Heading rendered above the table. |
-| `icon-style` | `cloud` | Where status icons live. `cloud` matches SonarCloud's PR decoration; `community-plugin` is for self-hosted SonarQube with the community branch plugin. |
+| `icon-style` | inferred from `sonar-host-url` | Where status icons live. Auto-picks `cloud` for `sonarcloud.io` (SonarSource-hosted icons) and `community-plugin` for any other host (icons served from your self-hosted SonarQube via the community branch plugin). Set explicitly to override — see [Icon style](#icon-style). |
 | `icon-base-url` | derived from `icon-style` | Override the icon base URL when neither default fits. |
 | `footer` | `Aggregated from per-project SonarQube scans.` | Text rendered below the table inside `<sub>`. |
 | `fail-on-quality-gate` | `false` | Fail the job when any gate is `ERROR`. |
@@ -102,6 +102,29 @@ querying the API for results.
 | `quality-gate` | `OK` if every project passed, otherwise `ERROR` / `NONE`. |
 | `results-json` | JSON array of per-project results. |
 | `body-path` | Path to the rendered comment body file. |
+
+## Icon style
+
+The action embeds quality-gate badges and metric icons in the comment. Two
+icon sources are supported:
+
+- **`cloud`** — SonarSource's hosted icons at
+  `https://sonarsource.github.io/sonarcloud-github-static-resources/v2`,
+  matching SonarCloud's native PR decoration.
+- **`community-plugin`** — icons served from your own SonarQube under
+  `<host>/static/communityBranchPlugin`, shipped by the
+  [community branch plugin][cbp] for self-hosted SonarQube.
+
+`icon-style` is inferred from `sonar-host-url`: `cloud` when the host is
+`sonarcloud.io`, `community-plugin` otherwise. That covers the two common
+deployments without configuration. Set `icon-style` explicitly when you need
+to override the inference — for example, on a self-hosted SonarQube
+Developer/Enterprise edition (no community branch plugin), point
+`icon-base-url` at wherever you host the icons and force `icon-style: cloud`
+(20px badges) or `community-plugin` (16px badges) to pick the filename
+convention.
+
+[cbp]: https://github.com/mc1arke/sonarqube-community-branch-plugin
 
 ## Suppressing SonarCloud's per-project comment
 

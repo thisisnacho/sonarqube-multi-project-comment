@@ -34,12 +34,14 @@ inputs:
     default: SonarQube PR analysis
   icon-style:
     description: |
-      Where status icons live. `cloud` (default) uses the SonarSource-hosted
-      icons on github.io and matches SonarCloud's PR decoration. Set to
-      `community-plugin` for self-hosted SonarQube with the community branch
-      plugin installed.
+      Where status icons live. When unset, inferred from `sonar-host-url`:
+      `cloud` for `sonarcloud.io` (SonarSource-hosted icons matching
+      SonarCloud's PR decoration), `community-plugin` for any other host
+      (icons served from your self-hosted SonarQube via the community
+      branch plugin). Set explicitly to override — e.g. if you're on a
+      self-hosted SonarQube Developer/Enterprise edition without the
+      community branch plugin, pair `icon-style: cloud` with `icon-base-url`.
     required: false
-    default: cloud
   icon-base-url:
     description: |
       Override the default icon base URL. Defaults to
