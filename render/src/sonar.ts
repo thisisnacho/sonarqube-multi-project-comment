@@ -10,7 +10,7 @@ export class SonarClient {
   private readonly authHeader: string;
 
   constructor(private readonly config: SonarConfig) {
-    this.authHeader = `Basic ${Buffer.from(`${config.token}:`).toString("base64")}`;
+    this.authHeader = `Basic ${Buffer.from(config.token + ":").toString("base64")}`;
   }
 
   get hostUrl(): string {

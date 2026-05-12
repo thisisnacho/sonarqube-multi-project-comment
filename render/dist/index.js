@@ -28783,7 +28783,7 @@ class SonarClient {
     authHeader;
     constructor(config) {
         this.config = config;
-        this.authHeader = `Basic ${Buffer.from(`${config.token}:`).toString("base64")}`;
+        this.authHeader = `Basic ${Buffer.from(config.token + ":").toString("base64")}`;
     }
     get hostUrl() {
         return stripTrailingSlash(this.config.hostUrl);
