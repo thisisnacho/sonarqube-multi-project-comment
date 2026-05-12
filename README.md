@@ -108,8 +108,8 @@ querying the API for results.
 By default SonarCloud posts its own summary comment for **every** project it
 analyses on a PR. With this action you want exactly one aggregated comment, so
 turn the native one off on each project that this action will roll up. Leave
-it enabled (or unset) on any project that is *not* being aggregated; that one
-keeps SonarCloud's native decoration.
+it enabled on any project that is *not* being aggregated; that one keeps
+SonarCloud's native decoration.
 
 Open each project on SonarCloud → *Administration → General Settings → Pull
 Requests* → toggle **"Enable summary comment"** off. The change takes effect
