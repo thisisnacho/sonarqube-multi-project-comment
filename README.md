@@ -112,12 +112,63 @@ permissions:
 
 ## How it works
 
-This is a composite action. It runs two steps:
+This is a composite action with two steps: a bundled Node sub-action
+(`./render`) that talks to the SonarQube API and emits a markdown body, and
+[`marocchino/sticky-pull-request-comment`][sticky] that posts the body and
+hides the previous aggregated comment as outdated.
 
-1. A bundled Node sub-action (`./render`) gathers data from the SonarQube API
-   and renders the markdown table.
-2. [`marocchino/sticky-pull-request-comment`][sticky] posts the body and hides
-   the previous aggregated comment as outdated.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant WF as Caller workflow
+    participant A as render sub-action
+    participant SQ as SonarQube / SonarCloud API
+    participant Sticky as sticky-pull-request-comment
+    participant GH as GitHub PR comments
+
+    WF->>A: uses: thisisnacho/sonarqube-multi-project-comment@v1
+    Note over A: parse inputs (projects and/or report-task-files)
+
+    opt report-task-files mode
+        A->>A: glob report-task.txt files, parse each
+        loop until SUCCESS or timeout
+            A->>SQ: GET /api/ce/task?id=<ceTaskId>
+            SQ-->>A: { task.status }
+        end
+    end
+
+    par for each project (in parallel)
+        A->>SQ: GET /api/qualitygates/project_status?projectKey=&pullRequest=
+        SQ-->>A: { status: OK | ERROR | NONE | … }
+    and
+        A->>SQ: GET /api/issues/search?…&inNewCodePeriod=true&resolved=false
+        SQ-->>A: { total }
+    and
+        A->>SQ: GET /api/issues/search?…&issueStatuses=ACCEPTED
+        SQ-->>A: { total }
+    and
+        A->>SQ: GET /api/measures/component?metricKeys=new_coverage,coverage,…
+        SQ-->>A: { component.measures[] }
+    end
+
+    A->>A: renderComment(results) → body.md
+    A-->>Sticky: body-path output
+    Sticky->>GH: minimizeComment(previous) + create new
+    GH-->>WF: aggregated comment landed
+```
+
+### Endpoints used
+
+| Endpoint | When | Why |
+| --- | --- | --- |
+| `GET /api/ce/task` | `report-task-files` mode only | Polls the Compute Engine until the scanner's task reports `SUCCESS` so subsequent queries see fresh data. |
+| `GET /api/qualitygates/project_status` | per project | Overall gate status (`OK`, `ERROR`, `NONE`, …) and the `dashboardUrl` placeholder. |
+| `GET /api/issues/search` (×2) | per project, skipped when gate is `NONE` | New-issue and accepted-issue counts for the PR's new-code period. |
+| `GET /api/measures/component` | per project, skipped when gate is `NONE` | `new_coverage`, `coverage`, `new_duplicated_lines_density`, `duplicated_lines_density`, `new_security_hotspots`. |
+
+All requests are sent with `Authorization: Basic <base64(token:)>` derived from
+`sonar-token`. Requests for one project run concurrently; projects themselves
+also run in parallel.
 
 [sticky]: https://github.com/marocchino/sticky-pull-request-comment
 
