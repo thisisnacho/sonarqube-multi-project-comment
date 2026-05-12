@@ -6,7 +6,8 @@ re-run.
 
 If your monorepo runs the scanner once per project (matrix build, multiple
 `sonar-project.properties`, …) you usually end up with one PR comment per
-project. Disable per-project PR decoration in SonarQube and use this action
+project. Suppress the native per-project comment (see
+[below](#suppressing-sonarclouds-per-project-comment)) and use this action
 instead.
 
 ![Aggregated SonarQube PR comment showing one row per project with quality gate, new and accepted issues, security hotspots, coverage, and duplications](docs/screenshot.png)
@@ -109,6 +110,29 @@ permissions:
   contents: read
   pull-requests: write
 ```
+
+## Suppressing SonarCloud's per-project comment
+
+By default SonarCloud posts its own summary comment for **every** project it
+analyses on a PR. With this action you want exactly one aggregated comment, so
+suppress the native ones on each project that this action will roll up.
+**Pick one of two ways:**
+
+**In `sonar-project.properties`** (source-controlled, recommended). Add:
+
+```properties
+sonar.pullrequest.github.summary_comment=false
+```
+
+to each project's `sonar-project.properties`. Forks of your repo inherit the
+right default automatically.
+
+**In the SonarCloud UI** (per project). Open the project →
+*Administration → General Settings → Pull Requests* → toggle
+**"Enable summary comment"** off. Stored in SonarCloud only, not in your repo.
+
+Either way, leave it enabled (or unset) on any project that is *not* being
+aggregated by this action — that one keeps SonarCloud's native decoration.
 
 ## How it works
 
